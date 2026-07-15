@@ -7,7 +7,7 @@ import (
 
 // 将新用户信息写入数据库
 func CreateAccount(ctx context.Context, account *model.Account) error {
-	err := DB.WithContext(ctx).Create(*account).Error
+	err := DB.WithContext(ctx).Create(account).Error
 	return err
 }
 
