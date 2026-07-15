@@ -10,7 +10,7 @@ import (
 
 var DB *gorm.DB
 
-func Init() {
+func InitDatabase() {
 	// 连接数据库
 	dsn := "root:123456@tcp(127.0.0.1:3306)/video_feedsystem?charset=utf8mb4&parseTime=True&loc=Local"
 	var err error
