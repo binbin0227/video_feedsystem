@@ -7,8 +7,7 @@ import (
 
 // 将新用户信息写入数据库
 func CreateAccount(ctx context.Context, account *model.Account) error {
-	err := DB.WithContext(ctx).Create(account).Error
-	return err
+	return DB.WithContext(ctx).Create(account).Error
 }
 
 // 检查用户名是否已经被注册
@@ -19,4 +18,14 @@ func CheckUsernameExist(ctx context.Context, username string) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// 根据用户名去数据库查询整条记录
+func FindByUsername(ctx context.Context, username string) (*model.Account, error) {
+	var account model.Account
+	err := DB.WithContext(ctx).Where("username = ?", username).First(&account).Error
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
 }

@@ -11,8 +11,11 @@ import (
 func main() {
 	db.InitDatabase()
 	utils.InitSnowFlake()
-	
-	h := server.Default(server.WithHostPorts("0.0.0.0:8080"))
+
+	h := server.Default(
+		server.WithHostPorts("0.0.0.0:20000"),
+		server.WithMaxRequestBodySize(100*1024*1024),
+	)
 	router.InitRouter(h)
 	h.Spin()
 }
