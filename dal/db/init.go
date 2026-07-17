@@ -1,7 +1,7 @@
 package db
 
 import (
-	"log"
+	"fmt"
 	"video_feedsystem/model"
 
 	"gorm.io/driver/mysql"
@@ -10,26 +10,31 @@ import (
 
 var DB *gorm.DB
 
-func InitDatabase() {
-	// 连接数据库
-	dsn := "root:123456@tcp(127.0.0.1:3306)/video_feedsystem?charset=utf8mb4&parseTime=True&loc=Local"
+// InitDatabase 连接数据库并自动创建或更新数据表。
+func InitDatabase(dsn string) error {
 	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{TranslateError: true})
 	if err != nil {
-		log.Fatalf("数据库连接失败: %v", err)
+		return fmt.Errorf("连接数据库失败: %w", err)
 	}
 
-	// 自动建表
-	err = DB.AutoMigrate(
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("数据库连接检查失败: %w", err)
+	}
+
+	if err := DB.AutoMigrate(
 		&model.Account{},
 		&model.Video{},
 		&model.Like{},
 		&model.Comment{},
 		&model.Social{},
-	)
-	if err != nil {
-		log.Fatalf("数据库建表失败: %v", err)
+	); err != nil {
+		return fmt.Errorf("数据库建表失败: %w", err)
 	}
 
-	log.Println("数据库连接成功")
+	return nil
 }

@@ -1,0 +1,16 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml"
+  },
+  "include": [
+    "**/*",
+    "go.sum"
+  ],
+  "ignore": {
+    "customPatterns": [
+      ".run/**",
+      ".run",
+      "**/.run/**"
+    ]
+  }
+}

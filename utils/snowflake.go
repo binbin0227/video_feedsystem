@@ -1,24 +1,29 @@
 package utils
 
 import (
+	"errors"
+
 	"github.com/sony/sonyflake"
-	"log"
 )
 
 var sf *sonyflake.Sonyflake
 
-// 初始化雪花算法
-func InitSnowFlake() {
-	var st sonyflake.Settings
-	sf = sonyflake.NewSonyflake(st)
+// InitSnowflake 初始化全局 ID 生成器。
+func InitSnowflake() error {
+	sf = sonyflake.NewSonyflake(sonyflake.Settings{})
 	if sf == nil {
-		log.Fatalf("雪花算法初始化失败")
+		return errors.New("雪花算法初始化失败")
 	}
-	log.Println("雪花算法初始化成功")
+	return nil
 }
 
+// GenerateID 生成一个 int64 类型的全局唯一 ID。
 func GenerateID() (int64, error) {
-	id, err := sf.NextID() // uint64
+	if sf == nil {
+		return 0, errors.New("雪花算法尚未初始化")
+	}
+
+	id, err := sf.NextID()
 	if err != nil {
 		return 0, err
 	}

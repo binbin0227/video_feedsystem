@@ -8,21 +8,21 @@ import (
 )
 
 func InitRouter(h *server.Hertz) {
-
-	h.Static("/static", "./.run/uploads")
+	// URL /uploads/... 对应本地目录 .run/uploads/...
+	h.Static("/uploads", "./.run/uploads")
+	h.GET("/ping", handler.Ping)
 
 	account := h.Group("/account")
 	{
 		account.POST("/register", handler.Register)
 		account.POST("/login", handler.Login)
 	}
-	video := h.Group("/video", middleware.JWTAuth())
-	{
-		// 公共接口
-		// video.GET("/list-by-author-id", ...)
-		// video.GET("/detail", ...)
 
-		// 需要登录的接口
+	video := h.Group("/video")
+	{
+		video.GET("/list-by-author-id", handler.ListByAuthorID)
+		video.GET("/detail", handler.GetVideoDetail)
+
 		authorized := video.Group("", middleware.JWTAuth())
 		{
 			authorized.POST("/upload-video", handler.UploadVideo)
@@ -30,5 +30,4 @@ func InitRouter(h *server.Hertz) {
 			authorized.POST("/publish", handler.PublishVideo)
 		}
 	}
-	// feed := h.Group("/feed")
 }

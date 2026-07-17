@@ -1,6 +1,6 @@
 module video_feedsystem
 
-go 1.26.3
+go 1.25.0
 
 require (
 	github.com/cloudwego/hertz v0.10.5
