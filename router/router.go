@@ -8,9 +8,9 @@ import (
 )
 
 func InitRouter(h *server.Hertz) {
-	// URL /uploads/... 对应本地目录 .run/uploads/...
-	h.Static("/uploads", "./.run/uploads")
 	h.GET("/ping", handler.Ping)
+	// URL /uploads/... 对应本地目录 .run/uploads/...
+	h.Static("/uploads", "./.run")
 
 	account := h.Group("/account")
 	{
@@ -28,6 +28,12 @@ func InitRouter(h *server.Hertz) {
 			authorized.POST("/upload-video", handler.UploadVideo)
 			authorized.POST("/upload-cover", handler.UploadCover)
 			authorized.POST("/publish", handler.PublishVideo)
+			authorized.POST("/like", handler.LikeVideo)
 		}
+	}
+
+	feed := h.Group("/feed")
+	{
+		feed.GET("/list", handler.ListFeed)
 	}
 }

@@ -31,12 +31,50 @@ func parsePositiveInt64Query(c *app.RequestContext, name string) (int64, error) 
 		return 0, apperr.New(apperr.KindInvalid, "缺少 "+name+" 参数")
 	}
 
-	id, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return 0, apperr.New(apperr.KindInvalid, name+" 格式错误")
+	return parsePositiveInt64String(value, name)
+}
+
+// parsePositiveInt64String 将字符串 ID 转成大于 0 的 int64。
+func parsePositiveInt64String(value, name string) (int64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, apperr.New(apperr.KindInvalid, name+" 不能为空")
 	}
-	if id <= 0 {
+
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || id <= 0 {
 		return 0, apperr.New(apperr.KindInvalid, name+" 不合法")
 	}
+
 	return id, nil
+}
+
+// parseOptionalCursor 解析 Feed 的可选游标，没传时返回 0。
+func parseOptionalCursor(c *app.RequestContext) (int64, error) {
+	value := strings.TrimSpace(c.Query("cursor"))
+	if value == "" {
+		return 0, nil
+	}
+
+	cursor, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || cursor < 0 {
+		return 0, apperr.New(apperr.KindInvalid, "cursor 格式错误")
+	}
+
+	return cursor, nil
+}
+
+// parseOptionalLimit 解析 Feed 的可选数量，没传时返回 0。
+func parseOptionalLimit(c *app.RequestContext) (int, error) {
+	value := strings.TrimSpace(c.Query("limit"))
+	if value == "" {
+		return 0, nil
+	}
+
+	limit, err := strconv.Atoi(value)
+	if err != nil || limit <= 0 {
+		return 0, apperr.New(apperr.KindInvalid, "limit 格式错误")
+	}
+
+	return limit, nil
 }
