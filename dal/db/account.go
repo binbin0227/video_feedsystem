@@ -18,10 +18,20 @@ func CheckUsernameExist(ctx context.Context, username string) (bool, error) {
 	return count > 0, err
 }
 
-// FindByUsername 根据用户名查询账号。
-func FindByUsername(ctx context.Context, username string) (*model.Account, error) {
+// FindAccountByUsername 根据用户名查询账号。
+func FindAccountByUsername(ctx context.Context, username string) (*model.Account, error) {
 	var account model.Account
 	err := DB.WithContext(ctx).Where("username = ?", username).First(&account).Error
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+// FindAccountByID 根据主键查询账号。
+func FindAccountByID(ctx context.Context, accountID int64) (*model.Account, error) {
+	var account model.Account
+	err := DB.WithContext(ctx).First(&account, accountID).Error
 	if err != nil {
 		return nil, err
 	}

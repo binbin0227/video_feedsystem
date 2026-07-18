@@ -10,7 +10,9 @@
     "customPatterns": [
       ".run/**",
       ".run",
-      "**/.run/**"
+      "**/.run/**",
+      "AGENTS.md",
+      ".agents/"
     ]
   }
 }

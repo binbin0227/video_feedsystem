@@ -74,7 +74,7 @@ func ListByAuthorID(ctx context.Context, authorID int64) ([]model.Video, error) 
 
 // GetVideoDetail 查询单个视频，不存在时返回 404 类业务错误。
 func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
-	// 1. 合法性校验
+	// 1. 校验参数
 	if videoID <= 0 {
 		return nil, apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}

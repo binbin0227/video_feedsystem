@@ -49,7 +49,7 @@ func parsePositiveInt64String(value, name string) (int64, error) {
 	return id, nil
 }
 
-// parseOptionalCursor 解析 Feed 的可选游标，没传时返回 0。
+// parseOptionalCursor 解析可选游标，没传时返回 0。
 func parseOptionalCursor(c *app.RequestContext) (int64, error) {
 	value := strings.TrimSpace(c.Query("cursor"))
 	if value == "" {
@@ -64,7 +64,7 @@ func parseOptionalCursor(c *app.RequestContext) (int64, error) {
 	return cursor, nil
 }
 
-// parseOptionalLimit 解析 Feed 的可选数量，没传时返回 0。
+// parseOptionalLimit 解析可选数量，没传时返回 0。
 func parseOptionalLimit(c *app.RequestContext) (int, error) {
 	value := strings.TrimSpace(c.Query("limit"))
 	if value == "" {

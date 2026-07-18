@@ -4,3 +4,6 @@ repomix-output*.xml
 .vscode/
 .env
 *.log
+AGENTS.md
+testdata/
+.agents

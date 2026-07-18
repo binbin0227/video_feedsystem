@@ -12,7 +12,7 @@ import (
 )
 
 func LikeVideo(ctx context.Context, accountID, videoID int64) error {
-	// 1. 合法性校验
+	// 1. 校验参数
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
@@ -46,4 +46,46 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 		return apperr.Wrap(apperr.KindInternal, "点赞失败，请稍后再试", err)
 	}
 	return nil
+}
+
+func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
+	// 1. 校验合法性
+	if accountID <= 0 {
+		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
+	}
+	if videoID <= 0 {
+		return apperr.New(apperr.KindInvalid, "视频ID不合法")
+	}
+
+	// 2. db.DeleteLike
+	err := db.DeleteLike(ctx, accountID, videoID)
+	if err != nil {
+		if errors.Is(err, db.ErrLikeNotFound) {
+			return apperr.New(apperr.KindConflict, "尚未点赞")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperr.New(apperr.KindNotFound, "视频不存在")
+		}
+		return apperr.Wrap(apperr.KindInternal, "取消点赞失败，请稍后再试", err)
+	}
+
+	return nil
+}
+
+func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error) {
+	// 1. 校验合法性
+	if accountID <= 0 {
+		return false, apperr.New(apperr.KindUnauthorized, "用户身份无效")
+	}
+	if videoID <= 0 {
+		return false, apperr.New(apperr.KindInvalid, "视频ID不合法")
+	}
+
+	// 2. db.CheckLikeExist
+	liked, err := db.CheckLikeExist(ctx, accountID, videoID)
+	if err != nil {
+		return false, apperr.Wrap(apperr.KindInternal, "查询点赞状态失败，请稍后再试", err)
+	}
+
+	return liked, nil
 }

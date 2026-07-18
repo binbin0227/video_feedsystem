@@ -19,7 +19,7 @@ type FeedResult struct {
 }
 
 func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
-	// 1. 合法性校验
+	// 1. 校验参数
 	if cursor < 0 {
 		return FeedResult{}, apperr.New(apperr.KindInvalid, "cursor 不合法")
 	}

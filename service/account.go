@@ -84,7 +84,7 @@ func Login(ctx context.Context, username, password string) (string, error) {
 	}
 
 	// 2. 调用 db.FindByUsername 查询账号
-	account, err := db.FindByUsername(ctx, username)
+	account, err := db.FindAccountByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", apperr.New(apperr.KindUnauthorized, "用户名或密码错误")
