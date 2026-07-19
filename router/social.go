@@ -15,6 +15,8 @@ func registerSocialRoutes(h *server.Hertz) {
 			authorized.POST("/follow", handler.FollowUser)
 			authorized.POST("/unfollow", handler.UnfollowUser)
 			authorized.GET("/status", handler.GetFollowStatus)
+			authorized.GET("/following", handler.GetFollowingList)
+			authorized.GET("/followers", handler.GetFollowerList)
 		}
 	}
 }

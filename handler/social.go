@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strconv"
 
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/pkg/httpx"
@@ -104,5 +105,89 @@ func GetFollowStatus(ctx context.Context, c *app.RequestContext) {
 	// 4. 返回结果
 	c.JSON(consts.StatusOK, map[string]bool{
 		"is_following": following,
+	})
+}
+
+// GetFollowingList 分页查询当前用户关注的账号。
+func GetFollowingList(ctx context.Context, c *app.RequestContext) {
+	// 1. 解析 cursor 和 limit
+	cursor, err := parseOptionalCursor(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+	limit, err := parseOptionalLimit(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 2. 获取 accountID
+	vloggerID, err := getAccountID(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 3. service.GetFollowingList
+	result, err := service.GetFollowingList(ctx, vloggerID, cursor, limit)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 4. 将下一页游标转换为字符串
+	nextCursor := ""
+	if result.NextCursor > 0 {
+		nextCursor = strconv.FormatInt(result.NextCursor, 10)
+	}
+
+	// 5. 返回结果
+	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
+		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
+		NextCursor: nextCursor,
+		HasMore:    result.HasMore,
+	})
+}
+
+// GetFollowerList 分页查询当前用户粉丝的账号。
+func GetFollowerList(ctx context.Context, c *app.RequestContext) {
+	// 1. cursor 和 limit
+	cursor, err := parseOptionalCursor(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+	limit, err := parseOptionalLimit(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 2. 获取 accountID
+	followerID, err := getAccountID(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 3. service.GetFollowerList
+	result, err := service.GetFollowerList(ctx, followerID, cursor, limit)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 4. 将下一页游标转换为字符串
+	nextCursor := ""
+	if result.NextCursor > 0 {
+		nextCursor = strconv.FormatInt(result.NextCursor, 10)
+	}
+
+	// 5. 返回结果
+	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
+		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
+		HasMore:    result.HasMore,
+		NextCursor: nextCursor,
 	})
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"video_feedsystem/dal/db"
 	"video_feedsystem/model"
@@ -11,6 +12,23 @@ import (
 
 	"gorm.io/gorm"
 )
+
+const (
+	defaultFollowingOrFollowerLimit = 20
+	maxFollowingOrFollowerLimit     = 100
+)
+
+type FollowingOrFollowerAccount struct {
+	AccountID  int64
+	Username   string
+	FollowedAt time.Time
+}
+
+type FollowingOrFollowerListResult struct {
+	Accounts   []FollowingOrFollowerAccount
+	NextCursor int64
+	HasMore    bool
+}
 
 func FollowUser(ctx context.Context, followerID, vloggerID int64) error {
 	// 1. 校验参数
@@ -96,4 +114,104 @@ func CheckFollowStatus(ctx context.Context, followerID, vloggerID int64) (bool, 
 	}
 
 	return following, nil
+}
+
+func GetFollowingList(ctx context.Context, followerID, cursor int64, limit int) (FollowingOrFollowerListResult, error) {
+	// 1. 校验参数
+	if followerID <= 0 {
+		return FollowingOrFollowerListResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")
+	}
+	if cursor < 0 {
+		return FollowingOrFollowerListResult{}, apperr.New(apperr.KindInvalid, "cursor 不合法")
+	}
+	if limit < 0 {
+		return FollowingOrFollowerListResult{}, apperr.New(apperr.KindInvalid, "limit 不合法")
+	}
+	if limit == 0 {
+		limit = defaultFollowingOrFollowerLimit
+	} else if limit > maxFollowingOrFollowerLimit {
+		limit = maxFollowingOrFollowerLimit
+	}
+
+	// 2. db.ListFollowingAccounts 多查询一条，判断是否还有下一页
+	rows, err := db.ListFollowingAccounts(ctx, followerID, cursor, limit+1)
+	if err != nil {
+		return FollowingOrFollowerListResult{}, apperr.Wrap(apperr.KindInternal, "查询关注列表失败，请稍后再试", err)
+	}
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	// 3. 将 DAL 查询结果转换为 Service 业务结果
+	accounts := make([]FollowingOrFollowerAccount, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, FollowingOrFollowerAccount{
+			AccountID:  row.AccountID,
+			Username:   row.Username,
+			FollowedAt: row.FollowedAt,
+		})
+	}
+
+	// 4. 使用最后一条关注关系的 ID 作为下一页游标
+	var nextCursor int64
+	if hasMore && len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].RelationID
+	}
+
+	return FollowingOrFollowerListResult{
+		Accounts:   accounts,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+func GetFollowerList(ctx context.Context, vloggerID, cursor int64, limit int) (FollowingOrFollowerListResult, error) {
+	// 1. 校验参数
+	if vloggerID <= 0 {
+		return FollowingOrFollowerListResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")
+	}
+	if cursor < 0 {
+		return FollowingOrFollowerListResult{}, apperr.New(apperr.KindInvalid, "cursor 不合法")
+	}
+	if limit < 0 {
+		return FollowingOrFollowerListResult{}, apperr.New(apperr.KindInvalid, "limit 不合法")
+	}
+	if limit == 0 {
+		limit = defaultFollowingOrFollowerLimit
+	} else if limit > maxFollowingOrFollowerLimit {
+		limit = maxFollowingOrFollowerLimit
+	}
+
+	// 2. db.ListFollowerAccounts 多查询一条，判断是否还有下一页
+	rows, err := db.ListFollowerAccounts(ctx, vloggerID, cursor, limit+1)
+	if err != nil {
+		return FollowingOrFollowerListResult{}, apperr.Wrap(apperr.KindInternal, "查询粉丝列表失败，请稍后再试", err)
+	}
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	// 3. 将 DAL 查询结果转换为 Service 业务结果
+	accounts := make([]FollowingOrFollowerAccount, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, FollowingOrFollowerAccount{
+			AccountID:  row.AccountID,
+			Username:   row.Username,
+			FollowedAt: row.FollowedAt,
+		})
+	}
+
+	// 4. 使用最后一条关注关系的 ID 作为下一页游标
+	var nextCursor int64
+	if hasMore && len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].RelationID
+	}
+
+	return FollowingOrFollowerListResult{
+		Accounts:   accounts,
+		HasMore:    hasMore,
+		NextCursor: nextCursor,
+	}, nil
 }
