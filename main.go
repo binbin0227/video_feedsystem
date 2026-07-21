@@ -37,6 +37,8 @@ func main() {
 			"http://127.0.0.1:5173",
 			"http://localhost:5189",
 			"http://127.0.0.1:5189",
+			// 樱花 FRP 会保留浏览器的 Origin，请显式允许当前自动 HTTPS 隧道地址。
+			"https://frp-fun.com:64718",
 		},
 		AllowMethods: []string{
 			"GET",

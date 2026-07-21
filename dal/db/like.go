@@ -12,16 +12,17 @@ import (
 var ErrLikeNotFound = errors.New("like record not found")
 
 type LikedVideoRow struct {
-	RelationID int64     `gorm:"column:relation_id"`
-	VideoID    int64     `gorm:"column:video_id"`
-	AuthorID   int64     `gorm:"column:author_id"`
-	Title      string    `gorm:"column:title"`
-	Description string   `gorm:"column:description"`
-	PlayURL    string    `gorm:"column:play_url"`
-	CoverURL   string    `gorm:"column:cover_url"`
-	CreatedAt  time.Time `gorm:"column:created_at"`
-	LikeCount  int       `gorm:"column:like_count"`
-	Popularity int       `gorm:"column:popularity"`
+	RelationID     int64     `gorm:"column:relation_id"`
+	VideoID        int64     `gorm:"column:video_id"`
+	AuthorID       int64     `gorm:"column:author_id"`
+	AuthorUsername string    `gorm:"column:author_username"`
+	Title          string    `gorm:"column:title"`
+	Description    string    `gorm:"column:description"`
+	PlayURL        string    `gorm:"column:play_url"`
+	CoverURL       string    `gorm:"column:cover_url"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	LikeCount      int       `gorm:"column:like_count"`
+	Popularity     int       `gorm:"column:popularity"`
 }
 
 func CreateLike(ctx context.Context, like *model.Like) error {
@@ -91,6 +92,7 @@ func ListLikedVideos(ctx context.Context, accountID, cursor int64, limit int) ([
 			l.id AS relation_id,
 			v.id AS video_id,
 			v.author_id,
+			a.username AS author_username,
 			v.title,
 			v.description,
 			v.play_url,
@@ -100,6 +102,7 @@ func ListLikedVideos(ctx context.Context, accountID, cursor int64, limit int) ([
 			v.popularity
 		`).
 		Joins("JOIN videos AS v ON v.id = l.video_id").
+		Joins("JOIN accounts AS a ON a.id = v.author_id").
 		Where("l.account_id = ?", accountID).
 		Order("l.id DESC").
 		Limit(limit)

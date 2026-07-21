@@ -1,23 +1,37 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { isLoggedIn, removeToken } from '../../utils/auth'
+import { getAccountId, isLoggedIn, removeToken } from '../../utils/auth'
 
 const route = useRoute()
 const router = useRouter()
 const loggedIn = ref(isLoggedIn())
+const accountId = ref(getAccountId())
 
 function syncLoginState() {
   loggedIn.value = isLoggedIn()
+  accountId.value = getAccountId()
 }
 
 function handleLogout() {
   removeToken()
   loggedIn.value = false
+  accountId.value = ''
   router.push('/')
 }
 
+function isImmersiveRoute() {
+  return route.name === 'home' || route.name === 'following-feed'
+}
+
+function syncRouteLayout() {
+  const immersive = isImmersiveRoute()
+  document.documentElement.classList.toggle('immersive-route', immersive)
+  document.body.classList.toggle('immersive-route', immersive)
+}
+
 watch(() => route.fullPath, syncLoginState)
+watch(() => route.name, syncRouteLayout, { immediate: true })
 onMounted(() => {
   window.addEventListener('storage', syncLoginState)
   window.addEventListener('auth-changed', syncLoginState)
@@ -25,11 +39,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('storage', syncLoginState)
   window.removeEventListener('auth-changed', syncLoginState)
+  document.documentElement.classList.remove('immersive-route')
+  document.body.classList.remove('immersive-route')
 })
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--immersive': isImmersiveRoute() }">
     <header class="site-header">
       <div class="site-header__inner">
         <RouterLink class="brand" to="/" aria-label="FrameFlow 首页">
@@ -45,6 +61,7 @@ onBeforeUnmount(() => {
 
         <nav class="account-nav" aria-label="账号导航">
           <template v-if="loggedIn">
+            <RouterLink v-if="accountId" class="secondary-account-link" :to="{ name: 'user-profile', params: { accountId } }">我的主页</RouterLink>
             <RouterLink class="secondary-account-link" to="/me/liked">我的点赞</RouterLink>
             <RouterLink class="secondary-account-link" to="/me/following">我的关注</RouterLink>
             <RouterLink class="secondary-account-link" to="/me/followers">我的粉丝</RouterLink>
@@ -59,7 +76,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <main class="page-shell">
+    <main class="page-shell" :class="{ 'page-shell--immersive': isImmersiveRoute() }">
       <RouterView />
     </main>
   </div>

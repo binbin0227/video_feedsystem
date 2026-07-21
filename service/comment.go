@@ -50,13 +50,22 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 		return nil, apperr.Wrap(apperr.KindInternal, "查询视频失败，请稍后再试", err)
 	}
 
-	// 3. 生成 commentID
+	// 3. 查询评论作者，保证发布成功后的响应可以立即返回用户名
+	account, err := db.FindAccountByID(ctx, accountID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperr.New(apperr.KindUnauthorized, "用户不存在")
+		}
+		return nil, apperr.Wrap(apperr.KindInternal, "查询用户失败，请稍后再试", err)
+	}
+
+	// 4. 生成 commentID
 	commentID, err := utils.GenerateID()
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "生成评论ID失败", err)
 	}
 
-	// 4. 打包
+	// 5. 打包
 	comment := &model.Comment{
 		ID:        commentID,
 		VideoID:   videoID,
@@ -64,12 +73,15 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 		Content:   content,
 	}
 
-	// 5. db.CreateComment
+	// 6. db.CreateComment
 	if err := db.CreateComment(ctx, comment); err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "发布评论失败，请稍后再试", err)
 	}
 
-	// 6. 返回评论
+	// 7. 只为响应补充作者信息，不让 GORM 在创建评论时重复保存账号关联
+	comment.Account = *account
+
+	// 8. 返回评论
 	return comment, nil
 }
 

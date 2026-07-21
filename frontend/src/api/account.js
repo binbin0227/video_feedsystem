@@ -17,3 +17,19 @@ export async function loginAccount(username, password) {
 
   return response.data
 }
+
+export async function getAccountProfile(accountId) {
+  const response = await http.get('/account/profile', {
+    params: { account_id: String(accountId) },
+  })
+
+  return response.data
+}
+
+export async function searchAccounts(keyword) {
+  const response = await http.get('/account/search', {
+    params: { keyword },
+  })
+
+  return response.data
+}

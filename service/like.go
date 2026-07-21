@@ -101,7 +101,6 @@ func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error
 	return liked, nil
 }
 
-
 func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) (LikedVideoListResult, error) {
 	// 1. 校验参数
 	if accountID <= 0 {
@@ -136,6 +135,7 @@ func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) 
 		videos = append(videos, model.Video{
 			ID:          row.VideoID,
 			AuthorID:    row.AuthorID,
+			Author:      model.Account{Username: row.AuthorUsername},
 			Title:       row.Title,
 			Description: row.Description,
 			PlayURL:     row.PlayURL,

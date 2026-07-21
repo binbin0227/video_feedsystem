@@ -83,13 +83,22 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 		return nil, apperr.New(apperr.KindInvalid, "封面路径格式不合法")
 	}
 
-	// 3. 生成视频 ID
+	// 3. 相同上传文件只允许发布一次；客户端因网络或页面跳转失败重试时直接返回原记录。
+	existingVideo, err := db.FindVideoByAuthorAndMedia(ctx, authorID, playURL, coverURL)
+	if err == nil {
+		return existingVideo, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperr.Wrap(apperr.KindInternal, "检查视频发布状态失败，请稍后再试", err)
+	}
+
+	// 4. 生成视频 ID
 	videoID, err := utils.GenerateID()
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "生成视频ID失败", err)
 	}
 
-	// 4. 打包并存入数据库
+	// 5. 打包并存入数据库
 	video := &model.Video{
 		ID:          videoID,
 		AuthorID:    authorID,
@@ -99,6 +108,13 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 		CoverURL:    coverURL,
 	}
 	if err := db.CreateVideo(ctx, video); err != nil {
+		// 唯一索引解决并发请求竞态；另一个请求已经写入时仍返回同一条视频。
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			existingVideo, findErr := db.FindVideoByAuthorAndMedia(ctx, authorID, playURL, coverURL)
+			if findErr == nil {
+				return existingVideo, nil
+			}
+		}
 		return nil, apperr.Wrap(apperr.KindInternal, "视频发布失败，请稍后再试", err)
 	}
 	return video, nil
@@ -162,8 +178,8 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 		return nil, apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
 
-	// 2. db.FindVideoByID
-	video, err := db.FindVideoByID(ctx, videoID)
+	// 2. 查询视频并预加载作者，供详情响应返回作者用户名。
+	video, err := db.FindVideoWithAuthorByID(ctx, videoID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperr.New(apperr.KindNotFound, "视频不存在")
 	}

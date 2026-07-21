@@ -15,6 +15,8 @@ func ListCommentsByVideoID(ctx context.Context, videoID, cursor int64, limit int
 	var comments []model.Comment
 	query := DB.WithContext(ctx).
 		Model(&model.Comment{}).
+		// 一次性预加载评论作者，避免前端只能显示 account_id。
+		Preload("Account").
 		Where("video_id = ?", videoID).
 		Order("id DESC").
 		Limit(limit)

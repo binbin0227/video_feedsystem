@@ -13,7 +13,7 @@
       "**/.run/**",
       "AGENTS.md",
       ".agents/",
-      "frontend/"
+      "frontend/**"
     ]
   }
 }

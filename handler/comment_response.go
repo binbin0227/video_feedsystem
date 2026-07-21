@@ -11,6 +11,7 @@ type CommentResponse struct {
 	ID        string    `json:"id"`
 	VideoID   string    `json:"video_id"`
 	AccountID string    `json:"account_id"`
+	Username  string    `json:"username"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -20,6 +21,7 @@ func newCommentResponse(comment *model.Comment) CommentResponse {
 		ID:        strconv.FormatInt(comment.ID, 10),
 		VideoID:   strconv.FormatInt(comment.VideoID, 10),
 		AccountID: strconv.FormatInt(comment.AccountID, 10),
+		Username:  comment.Account.Username,
 		Content:   comment.Content,
 		CreatedAt: comment.CreatedAt,
 	}
