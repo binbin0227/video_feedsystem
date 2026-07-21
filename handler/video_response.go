@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"video_feedsystem/model"
+	"video_feedsystem/service"
 )
 
 // VideoResponse 是返回给前端的视频结构，ID 使用字符串避免前端精度丢失。
 type VideoResponse struct {
 	ID          string    `json:"id"`
 	AuthorID    string    `json:"author_id"`
+	AuthorUsername string `json:"author_username,omitempty"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	PlayURL     string    `json:"play_url"`
@@ -39,5 +41,21 @@ func newVideoListResponse(videos []model.Video) []VideoResponse {
 	for i := range videos {
 		result = append(result, newVideoResponse(&videos[i]))
 	}
+	return result
+}
+
+func newFeedVideoResponse(item *service.FeedVideo) VideoResponse {
+	response := newVideoResponse(&item.Video)
+	response.AuthorUsername = item.AuthorUsername
+	return response
+}
+
+func newFeedVideoListResponse(videos []service.FeedVideo) []VideoResponse {
+	result := make([]VideoResponse, 0, len(videos))
+
+	for i := range videos {
+		result = append(result, newFeedVideoResponse(&videos[i]))
+	}
+
 	return result
 }

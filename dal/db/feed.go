@@ -2,33 +2,22 @@ package db
 
 import (
 	"context"
+
 	"video_feedsystem/model"
 )
 
-func ListFeed(ctx context.Context, cursor int64, limit int) ([]model.Video, error) {
-	var videos []model.Video
-	query := DB.WithContext(ctx).
-		Model(&model.Video{}).
-		Order("id DESC").
-		Limit(limit)
-	if cursor > 0 {
-		query = query.Where("id < ?", cursor)
-	}
-	err := query.Find(&videos).Error
-	return videos, err
+type FeedVideoRow struct {
+	model.Video
+	AuthorUsername string `gorm:"column:author_username"`
 }
 
-func ListFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) ([]model.Video, error) {
-	var videos []model.Video
+func ListFeed(ctx context.Context, cursor int64, limit int) ([]FeedVideoRow, error) {
+	var rows []FeedVideoRow
 
 	query := DB.WithContext(ctx).
 		Table("videos AS v").
-		Where(`
-			EXISTS (
-				SELECT 1
-				FROM socials AS s
-				WHERE s.follower_id = ? AND s.vlogger_id = v.author_id
-				)`, followerID).
+		Select("v.*, a.username AS author_username").
+		Joins("JOIN accounts AS a ON a.id = v.author_id").
 		Order("v.id DESC").
 		Limit(limit)
 
@@ -36,6 +25,32 @@ func ListFollowingFeed(ctx context.Context, followerID, cursor int64, limit int)
 		query = query.Where("v.id < ?", cursor)
 	}
 
-	err := query.Find(&videos).Error
-	return videos, err
+	err := query.Scan(&rows).Error
+	return rows, err
+}
+
+func ListFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) ([]FeedVideoRow, error) {
+	var rows []FeedVideoRow
+
+	query := DB.WithContext(ctx).
+		Table("videos AS v").
+		Select("v.*, a.username AS author_username").
+		Joins("JOIN accounts AS a ON a.id = v.author_id").
+		Where(`
+			EXISTS (
+				SELECT 1
+				FROM socials AS s
+				WHERE s.follower_id = ?
+				  AND s.vlogger_id = v.author_id
+			)
+		`, followerID).
+		Order("v.id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("v.id < ?", cursor)
+	}
+
+	err := query.Scan(&rows).Error
+	return rows, err
 }

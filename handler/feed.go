@@ -44,7 +44,7 @@ func ListFeed(ctx context.Context, c *app.RequestContext) {
 
 	// 4. 返回结果
 	c.JSON(consts.StatusOK, FeedResponse{
-		Videos:     newVideoListResponse(result.Videos),
+		Videos: newFeedVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
 		HasMore:    result.HasMore,
 	})
@@ -87,7 +87,7 @@ func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
 
 	// 5. 返回结果
 	c.JSON(consts.StatusOK, FeedResponse{
-		Videos:     newVideoListResponse(result.Videos),
+		Videos: newFeedVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
 		HasMore:    result.HasMore,
 	})

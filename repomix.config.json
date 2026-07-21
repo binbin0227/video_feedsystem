@@ -12,7 +12,8 @@
       ".run",
       "**/.run/**",
       "AGENTS.md",
-      ".agents/"
+      ".agents/",
+      "frontend/"
     ]
   }
 }

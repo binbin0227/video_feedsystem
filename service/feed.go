@@ -12,10 +12,28 @@ const (
 	maxFeedLimit     = 50
 )
 
+type FeedVideo struct {
+	Video          model.Video
+	AuthorUsername string
+}
+
 type FeedResult struct {
-	Videos     []model.Video
+	Videos     []FeedVideo
 	NextCursor int64
 	HasMore    bool
+}
+
+func newFeedVideos(rows []db.FeedVideoRow) []FeedVideo {
+	videos := make([]FeedVideo, 0, len(rows))
+
+	for _, row := range rows {
+		videos = append(videos, FeedVideo{
+			Video:          row.Video,
+			AuthorUsername: row.AuthorUsername,
+		})
+	}
+
+	return videos
 }
 
 func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
@@ -32,24 +50,24 @@ func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
 	}
 
 	// 2. db.ListFeed 多查一个来判断还有没有剩余视频
-	videos, err := db.ListFeed(ctx, cursor, limit+1)
+	rows, err := db.ListFeed(ctx, cursor, limit+1)
 	if err != nil {
 		return FeedResult{}, apperr.Wrap(apperr.KindInternal, "查询视频流失败，请稍后再试", err)
 	}
-	hasMore := len(videos) > limit
+	hasMore := len(rows) > limit
 	if hasMore {
-		videos = videos[:limit]
+		rows = rows[:limit]
 	}
 
 	// 3. 还有剩余视频且刚当前返回列表不为空才返回 cursor
 	var nextCursor int64
-	if hasMore && len(videos) > 0 {
-		nextCursor = videos[len(videos)-1].ID
+	if hasMore && len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].ID
 	}
 
 	// 4. 返回结果
 	return FeedResult{
-		Videos:     videos,
+		Videos:     newFeedVideos(rows),
 		NextCursor: nextCursor,
 		HasMore:    hasMore,
 	}, nil
@@ -74,24 +92,24 @@ func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) 
 	}
 
 	// 2. 多查询一条，判断是否还有下一页
-	videos, err := db.ListFollowingFeed(ctx, followerID, cursor, limit+1)
+	rows, err := db.ListFollowingFeed(ctx, followerID, cursor, limit+1)
 	if err != nil {
 		return FeedResult{}, apperr.Wrap(apperr.KindInternal, "查询关注流失败，请稍后再试", err)
 	}
 
-	hasMore := len(videos) > limit
+	hasMore := len(rows) > limit
 	if hasMore {
-		videos = videos[:limit]
+		rows = rows[:limit]
 	}
 
 	// 3. 使用当前页最后一个视频的 ID 作为下一页游标
 	var nextCursor int64
-	if hasMore && len(videos) > 0 {
-		nextCursor = videos[len(videos)-1].ID
+	if hasMore && len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].ID
 	}
 
 	return FeedResult{
-		Videos:     videos,
+		Videos:     newFeedVideos(rows),
 		NextCursor: nextCursor,
 		HasMore:    hasMore,
 	}, nil
