@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"video_feedsystem/config"
 	"video_feedsystem/dal/db"
@@ -9,6 +10,7 @@ import (
 	"video_feedsystem/utils"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/hertz-contrib/cors"
 )
 
 func main() {
@@ -28,6 +30,26 @@ func main() {
 		server.WithHostPorts(cfg.HostPorts),
 		server.WithMaxRequestBodySize(220*1024*1024),
 	)
+
+	h.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:5173",
+			"http://127.0.0.1:5173",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+			"PATCH",
+			"DELETE",
+			"OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Authorization",
+		},
+		MaxAge: 12 * time.Hour,
+	}))
 
 	router.InitRouter(h)
 	h.Spin()

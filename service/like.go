@@ -11,6 +11,17 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	defaultLikedVideoLimit = 20
+	maxLikedVideoLimit     = 100
+)
+
+type LikedVideoListResult struct {
+	Videos     []model.Video
+	NextCursor int64
+	HasMore    bool
+}
+
 func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 	// 1. 校验参数
 	if accountID <= 0 {
@@ -88,4 +99,62 @@ func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error
 	}
 
 	return liked, nil
+}
+
+
+func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) (LikedVideoListResult, error) {
+	// 1. 校验参数
+	if accountID <= 0 {
+		return LikedVideoListResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")
+	}
+	if cursor < 0 {
+		return LikedVideoListResult{}, apperr.New(apperr.KindInvalid, "cursor 不合法")
+	}
+	if limit < 0 {
+		return LikedVideoListResult{}, apperr.New(apperr.KindInvalid, "limit 不合法")
+	}
+	if limit == 0 {
+		limit = defaultLikedVideoLimit
+	} else if limit > maxLikedVideoLimit {
+		limit = maxLikedVideoLimit
+	}
+
+	// 2. 多查询一条，判断是否还有下一页
+	rows, err := db.ListLikedVideos(ctx, accountID, cursor, limit+1)
+	if err != nil {
+		return LikedVideoListResult{}, apperr.Wrap(apperr.KindInternal, "查询点赞视频列表失败，请稍后再试", err)
+	}
+
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	// 3. 将 DAL 的 JOIN 查询结果转换为 Video
+	videos := make([]model.Video, 0, len(rows))
+	for _, row := range rows {
+		videos = append(videos, model.Video{
+			ID:          row.VideoID,
+			AuthorID:    row.AuthorID,
+			Title:       row.Title,
+			Description: row.Description,
+			PlayURL:     row.PlayURL,
+			CoverURL:    row.CoverURL,
+			CreatedAt:   row.CreatedAt,
+			LikeCount:   row.LikeCount,
+			Popularity:  row.Popularity,
+		})
+	}
+
+	// 4. 使用最后一条点赞关系的 ID 作为游标
+	var nextCursor int64
+	if hasMore && len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].RelationID
+	}
+
+	return LikedVideoListResult{
+		Videos:     videos,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
 }

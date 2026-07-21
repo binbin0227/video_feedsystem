@@ -12,12 +12,20 @@ func CreateVideo(ctx context.Context, video *model.Video) error {
 }
 
 // ListByAuthorID 按发布时间倒序查询作者的所有视频。
-func ListByAuthorID(ctx context.Context, authorID int64) ([]model.Video, error) {
+func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) ([]model.Video, error) {
 	var videos []model.Video
-	err := DB.WithContext(ctx).
+
+	query := DB.WithContext(ctx).
+		Model(&model.Video{}).
 		Where("author_id = ?", authorID).
-		Order("created_at DESC").
-		Find(&videos).Error
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	err := query.Find(&videos).Error
 	return videos, err
 }
 

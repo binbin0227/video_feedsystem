@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strconv"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/pkg/httpx"
 	"video_feedsystem/service"
@@ -12,6 +13,12 @@ import (
 
 type LikeRequest struct {
 	VideoID string `json:"video_id"`
+}
+
+type LikedVideoListResponse struct {
+	Videos     []VideoResponse `json:"videos"`
+	NextCursor string          `json:"next_cursor"`
+	HasMore    bool            `json:"has_more"`
 }
 
 func LikeVideo(ctx context.Context, c *app.RequestContext) {
@@ -104,4 +111,46 @@ func GetLikeStatus(ctx context.Context, c *app.RequestContext) {
 
 	// 4. 返回结果
 	c.JSON(consts.StatusOK, map[string]bool{"is_liked": liked})
+}
+
+// GetLikedVideoList 分页查询当前用户点赞过的视频。
+func GetLikedVideoList(ctx context.Context, c *app.RequestContext) {
+	// 1. 获取当前登录用户
+	accountID, err := getAccountID(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 2. 解析 cursor 和 limit
+	cursor, err := parseOptionalCursor(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+	limit, err := parseOptionalLimit(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 3. 查询点赞视频列表
+	result, err := service.GetLikedVideoList(ctx, accountID, cursor, limit)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 4. 将下一页游标转换为字符串
+	nextCursor := ""
+	if result.NextCursor > 0 {
+		nextCursor = strconv.FormatInt(result.NextCursor, 10)
+	}
+
+	// 5. 返回结果
+	c.JSON(consts.StatusOK, LikedVideoListResponse{
+		Videos:     newVideoListResponse(result.Videos),
+		NextCursor: nextCursor,
+		HasMore:    result.HasMore,
+	})
 }

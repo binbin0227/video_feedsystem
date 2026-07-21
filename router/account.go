@@ -11,5 +11,7 @@ func registerAccountRoutes(h *server.Hertz) {
 	{
 		account.POST("/register", handler.Register)
 		account.POST("/login", handler.Login)
+		account.GET("/profile", handler.GetAccountProfile)
+		account.GET("/search", handler.SearchAccounts)
 	}
 }

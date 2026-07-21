@@ -21,6 +21,7 @@ func registerVideoRoutes(h *server.Hertz) {
 			authorized.POST("/like", handler.LikeVideo)
 			authorized.POST("/unlike", handler.UnlikeVideo)
 			authorized.GET("/like-status", handler.GetLikeStatus)
+			authorized.GET("/liked", handler.GetLikedVideoList)
 		}
 	}
 }

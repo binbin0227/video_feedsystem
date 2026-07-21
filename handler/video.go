@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"video_feedsystem/pkg/apperr"
@@ -23,6 +24,12 @@ type PublishRequest struct {
 	Description string `json:"description"`
 	PlayURL     string `json:"play_url"`
 	CoverURL    string `json:"cover_url"`
+}
+
+type AuthorVideoListResponse struct {
+	Videos     []VideoResponse `json:"videos"`
+	NextCursor string          `json:"next_cursor"`
+	HasMore    bool            `json:"has_more"`
 }
 
 // PublishVideo 将已经上传的视频和封面信息写入数据库。
@@ -144,23 +151,47 @@ func UploadVideo(ctx context.Context, c *app.RequestContext) {
 	})
 }
 
-// ListByAuthorID 查询指定作者发布的视频。
+// ListByAuthorID 分页查询指定作者发布的视频。
 func ListByAuthorID(ctx context.Context, c *app.RequestContext) {
-	// 1. 从 c 中读取 video_id 并转换为 int64
+	// 1. 解析 author_id
 	authorID, err := parsePositiveInt64Query(c, "author_id")
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
 
-	// 2. service.ListByAuthorID
-	videos, err := service.ListByAuthorID(ctx, authorID)
+	// 2. 解析 cursor 和 limit
+	cursor, err := parseOptionalCursor(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]any{"videos": newVideoListResponse(videos)})
+	limit, err := parseOptionalLimit(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 3. 查询作者发布的视频
+	result, err := service.ListByAuthorID(ctx, authorID, cursor, limit)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 4. 将下一页游标转换为字符串
+	nextCursor := ""
+	if result.NextCursor > 0 {
+		nextCursor = strconv.FormatInt(result.NextCursor, 10)
+	}
+
+	// 5. 返回结果
+	c.JSON(consts.StatusOK, AuthorVideoListResponse{
+		Videos:     newVideoListResponse(result.Videos),
+		NextCursor: nextCursor,
+		HasMore:    result.HasMore,
+	})
 }
 
 // GetVideoDetail 查询单个视频详情。

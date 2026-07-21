@@ -123,14 +123,14 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 	}
 
 	// 2. 获取 accountID
-	vloggerID, err := getAccountID(c)
+	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
 
 	// 3. service.GetFollowingList
-	result, err := service.GetFollowingList(ctx, vloggerID, cursor, limit)
+	result, err := service.GetFollowingList(ctx, followerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
@@ -165,14 +165,14 @@ func GetFollowerList(ctx context.Context, c *app.RequestContext) {
 	}
 
 	// 2. 获取 accountID
-	followerID, err := getAccountID(c)
+	vloggerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
 
 	// 3. service.GetFollowerList
-	result, err := service.GetFollowerList(ctx, followerID, cursor, limit)
+	result, err := service.GetFollowerList(ctx, vloggerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return

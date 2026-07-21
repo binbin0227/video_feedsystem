@@ -58,3 +58,42 @@ func Login(ctx context.Context, c *app.RequestContext) {
 	// 3. 登录成功，向前端返回 token
 	c.JSON(consts.StatusOK, map[string]string{"token": token})
 }
+
+func GetAccountProfile(ctx context.Context,c *app.RequestContext) {
+	// 1. 解析 account_id
+	accountID, err := parsePositiveInt64Query(c, "account_id")
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 2. 查询用户主页
+	profile, err := service.GetAccountProfile(ctx, accountID)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 3. 返回结果
+	c.JSON(consts.StatusOK, map[string]any{
+		"profile": newAccountProfileResponse(profile),
+	})
+}
+
+// SearchAccounts 根据用户名关键词搜索用户。
+func SearchAccounts(ctx context.Context, c *app.RequestContext) {
+	// 1. 获取搜索关键词
+	keyword := c.Query("keyword")
+
+	// 2. service.SearchAccounts
+	accounts, err := service.SearchAccounts(ctx, keyword)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 3. 返回搜索结果
+	c.JSON(consts.StatusOK, AccountSearchResponse{
+		Accounts: newAccountSearchListResponse(accounts),
+	})
+}

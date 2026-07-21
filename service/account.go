@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"video_feedsystem/dal/db"
@@ -15,10 +16,27 @@ import (
 	"gorm.io/gorm"
 )
 
+type AccountSearchItem struct {
+	AccountID         int64
+	Username          string
+	ReceivedLikeCount int64
+	FollowerCount     int64
+}
+type AccountProfile struct {
+	AccountID         int64
+	Username          string
+	CreatedAt         time.Time
+	VideoCount        int64
+	ReceivedLikeCount int64
+	FollowingCount    int64
+	FollowerCount     int64
+}
+
 const (
-	maxUsernameLength = 32
-	minPasswordLength = 8
-	maxPasswordLength = 72
+	maxUsernameLength  = 32
+	minPasswordLength  = 8
+	maxPasswordLength  = 72
+	accountSearchLimit = 20
 )
 
 // Register 校验注册信息、加密密码并创建账号。
@@ -103,4 +121,58 @@ func Login(ctx context.Context, username, password string) (string, error) {
 		return "", apperr.Wrap(apperr.KindInternal, "生成登录凭证失败，请稍后再试", err)
 	}
 	return token, nil
+}
+
+func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, error) {
+	// 1. 参数校验
+	if accountID <= 0 {
+		return nil, apperr.New(apperr.KindInvalid, "用户ID不合法")
+	}
+
+	// 2. db.FindAccountProfile
+	row, err := db.FindAccountProfile(ctx, accountID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperr.New(apperr.KindNotFound, "用户不存在")
+		}
+		return nil, apperr.Wrap(apperr.KindInternal, "查询用户主页失败，请稍后再试", err)
+	}
+
+	// 3. 打包
+	return &AccountProfile{
+		AccountID:         row.AccountID,
+		Username:          row.Username,
+		CreatedAt:         row.CreatedAt,
+		VideoCount:        row.VideoCount,
+		ReceivedLikeCount: row.ReceivedLikeCount,
+		FollowingCount:    row.FollowingCount,
+		FollowerCount:     row.FollowerCount,
+	}, nil
+}
+
+func SearchAccounts(ctx context.Context, keyword string) ([]AccountSearchItem, error) {
+	// 1. 参数校验
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return nil, apperr.New(apperr.KindInvalid, "搜索关键词不能为空")
+	}
+
+	// 2. db.SearchAccountsByUsername，最多返回20个
+	rows, err := db.SearchAccountsByUsername(ctx, keyword, accountSearchLimit)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.KindInternal, "搜索用户失败，请稍后再试", err)
+	}
+
+	// 3. 打包
+	accounts := make([]AccountSearchItem, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, AccountSearchItem{
+			AccountID:         row.AccountID,
+			Username:          row.Username,
+			ReceivedLikeCount: row.ReceivedLikeCount,
+			FollowerCount:     row.FollowerCount,
+		})
+	}
+
+	return accounts, nil
 }

@@ -54,3 +54,45 @@ func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
 		HasMore:    hasMore,
 	}, nil
 }
+
+// GetFollowingFeed 分页查询当前用户关注的人发布的视频。
+func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) (FeedResult, error) {
+	// 1. 校验参数
+	if followerID <= 0 {
+		return FeedResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")
+	}
+	if cursor < 0 {
+		return FeedResult{}, apperr.New(apperr.KindInvalid, "cursor 不合法")
+	}
+	if limit < 0 {
+		return FeedResult{}, apperr.New(apperr.KindInvalid, "limit 不合法")
+	}
+	if limit == 0 {
+		limit = defaultFeedLimit
+	} else if limit > maxFeedLimit {
+		limit = maxFeedLimit
+	}
+
+	// 2. 多查询一条，判断是否还有下一页
+	videos, err := db.ListFollowingFeed(ctx, followerID, cursor, limit+1)
+	if err != nil {
+		return FeedResult{}, apperr.Wrap(apperr.KindInternal, "查询关注流失败，请稍后再试", err)
+	}
+
+	hasMore := len(videos) > limit
+	if hasMore {
+		videos = videos[:limit]
+	}
+
+	// 3. 使用当前页最后一个视频的 ID 作为下一页游标
+	var nextCursor int64
+	if hasMore && len(videos) > 0 {
+		nextCursor = videos[len(videos)-1].ID
+	}
+
+	return FeedResult{
+		Videos:     videos,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
