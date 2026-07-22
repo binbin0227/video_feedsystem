@@ -5,6 +5,7 @@ import "os"
 // Config 保存服务启动所需的数据库、JWT 和监听地址配置。
 type Config struct {
 	MySQLDSN  string
+	RedisAddr string
 	JWTSecret string
 	HostPorts string
 }
@@ -15,6 +16,7 @@ func Load() Config {
 		MySQLDSN:  getEnv("MYSQL_DSN", "root:123456@tcp(127.0.0.1:3306)/video_feedsystem?charset=utf8mb4&parseTime=True&loc=Local"),
 		JWTSecret: getEnv("JWT_SECRET", "feedsystem-dev-secret-key"),
 		HostPorts: getEnv("HOST_PORTS", "0.0.0.0:20000"),
+		RedisAddr: getEnv("REDIS_ADDR", "127.0.0.1:6379"),
 	}
 }
 

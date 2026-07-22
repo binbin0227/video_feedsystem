@@ -110,22 +110,32 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 		return nil, err
 	}
 
-	// 3. 相同上传文件只允许发布一次；客户端因网络或页面跳转失败重试时直接返回原记录。
+	// 3. 查询当前作者，保证发布响应可以直接返回用户名。
+	author, err := db.FindAccountByID(ctx, authorID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperr.New(apperr.KindUnauthorized, "用户不存在")
+	}
+	if err != nil {
+		return nil, apperr.Wrap(apperr.KindInternal, "查询用户失败，请稍后再试", err)
+	}
+
+	// 4. 相同上传文件只允许发布一次；客户端因网络或页面跳转失败重试时直接返回原记录。
 	existingVideo, err := db.FindVideoByAuthorAndMedia(ctx, authorID, playURL, coverURL)
 	if err == nil {
+		existingVideo.Author = *author
 		return existingVideo, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperr.Wrap(apperr.KindInternal, "检查视频发布状态失败，请稍后再试", err)
 	}
 
-	// 4. 生成视频 ID
+	// 5. 生成视频 ID
 	videoID, err := utils.GenerateID()
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "生成视频ID失败", err)
 	}
 
-	// 5. 打包并存入数据库
+	// 6. 打包并存入数据库
 	video := &model.Video{
 		ID:          videoID,
 		AuthorID:    authorID,
@@ -139,11 +149,13 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			existingVideo, findErr := db.FindVideoByAuthorAndMedia(ctx, authorID, playURL, coverURL)
 			if findErr == nil {
+				existingVideo.Author = *author
 				return existingVideo, nil
 			}
 		}
 		return nil, apperr.Wrap(apperr.KindInternal, "视频发布失败，请稍后再试", err)
 	}
+	video.Author = *author
 	return video, nil
 }
 

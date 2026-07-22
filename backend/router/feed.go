@@ -11,6 +11,7 @@ import (
 func registerFeedRoutes(h *server.Hertz) {
 	feed := h.Group("/feed")
 	{
+		feed.GET("/hot", handler.ListHotFeed)
 		feed.GET("/list", handler.ListFeed)
 		authorized := feed.Group("", middleware.JWTAuth())
 		{

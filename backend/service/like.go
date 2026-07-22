@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"video_feedsystem/dal/db"
+	"video_feedsystem/dal/redis"
 	"video_feedsystem/model"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/utils"
 
+	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"gorm.io/gorm"
 )
 
@@ -58,6 +60,12 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 		}
 		return apperr.Wrap(apperr.KindInternal, "点赞失败，请稍后再试", err)
 	}
+
+	// 5. 点赞成功后增加 Redis 热度
+	if err := redis.ChangeVideoHotScore(ctx, videoID, 3); err != nil {
+		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
+	}
+
 	return nil
 }
 
@@ -81,6 +89,11 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 			return apperr.New(apperr.KindNotFound, "视频不存在")
 		}
 		return apperr.Wrap(apperr.KindInternal, "取消点赞失败，请稍后再试", err)
+	}
+
+	// 3. 取消点赞成功后减少 Redis 热度
+	if err := redis.ChangeVideoHotScore(ctx, videoID, -3); err != nil {
+		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
 	}
 
 	return nil

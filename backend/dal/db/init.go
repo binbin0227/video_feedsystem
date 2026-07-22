@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"time"
 
 	"video_feedsystem/model"
 
@@ -24,12 +23,6 @@ func InitDatabase(dsn string) error {
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
-	// 限制连接总量并定期回收连接，避免长时间运行时无限创建连接或持有失效连接。
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
-	sqlDB.SetConnMaxLifetime(time.Hour)
-
 	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("数据库连接检查失败: %w", err)
 	}

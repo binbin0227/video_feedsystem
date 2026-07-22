@@ -2,7 +2,6 @@ package model
 
 import "time"
 
-// Video 表示视频表；idx_author_video 支持作者作品分页，idx_author_media 用于防止同一上传文件重复发布。
 type Video struct {
 	ID          int64     `gorm:"primaryKey;autoIncrement:false;index:idx_author_video,priority:2" json:"id"`
 	AuthorID    int64     `gorm:"not null;index:idx_author_video,priority:1;uniqueIndex:idx_author_media,priority:1" json:"author_id"`

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"video_feedsystem/dal/db"
+	"video_feedsystem/dal/redis"
 	"video_feedsystem/model"
 	"video_feedsystem/pkg/apperr"
 )
@@ -10,6 +11,7 @@ import (
 const (
 	defaultFeedLimit = 10
 	maxFeedLimit     = 50
+	hotFeedLimit     = 10
 )
 
 // FeedVideo 在视频模型之外携带作者用户名。
@@ -117,4 +119,42 @@ func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) 
 		NextCursor: nextCursor,
 		HasMore:    hasMore,
 	}, nil
+}
+
+// GetHotFeed 查询热门视频
+func GetHotFeed(ctx context.Context) ([]FeedVideo,error) {
+	// 1. 从 Redis 查询热度最高的 10 个视频 ID
+	videoIDs,err:=redis.ListHotVideoIDs(ctx,int64(hotFeedLimit))
+	if err!=nil{
+		return nil,apperr.Wrap(apperr.KindInternal,"查询热门视频失败，请稍后再试",err)
+	}
+
+	// Redis 热门榜没有数据
+	if len(videoIDs) == 0 {
+		return []FeedVideo{}, nil
+	}
+
+	// 2. db.ListVideosByIDs 查询完整视频信息
+	rows,err:=db.ListVideosByIDs(ctx,videoIDs)
+	if err!=nil{
+		return nil,apperr.Wrap(apperr.KindInternal,"查询热门视频失败，请稍后再试",err)
+	}
+
+	// 3. 将 MySQL 查询结果按照视频 ID 放入 map
+	rowMap:=make(map[int64]db.FeedVideoRow,len(rows))
+	for _,row := range rows{
+		rowMap[row.ID]=row
+	}
+
+	// 4. 按照 Redis 返回的热度顺序重新排列
+	orderedRows := make([]db.FeedVideoRow, 0, len(videoIDs))
+	for _, videoID := range videoIDs {
+		row, exists := rowMap[videoID]
+		if !exists {
+			continue
+		}
+		orderedRows = append(orderedRows, row)
+	}
+
+	return newFeedVideos(orderedRows), nil
 }

@@ -94,16 +94,6 @@ func UploadCover(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "封面文件不能超过10MB"))
 		return
 	}
-	contentType, err := detectUploadedContentType(file)
-	if err != nil {
-		httpx.WriteError(ctx, c, err)
-		return
-	}
-	if (ext == ".png" && contentType != "image/png") || (ext != ".png" && contentType != "image/jpeg") {
-		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "封面文件内容与扩展名不匹配"))
-		return
-	}
-
 	// 4. 保存文件
 	coverURL, err := saveUploadedFile(c, file, authorID, "covers", ext)
 	if err != nil {
@@ -148,16 +138,6 @@ func UploadVideo(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "视频文件不能超过200MB"))
 		return
 	}
-	contentType, err := detectUploadedContentType(file)
-	if err != nil {
-		httpx.WriteError(ctx, c, err)
-		return
-	}
-	if contentType != "video/mp4" {
-		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "视频文件内容与扩展名不匹配"))
-		return
-	}
-
 	// 4. 保存文件
 	videoURL, err := saveUploadedFile(c, file, authorID, "videos", ext)
 	if err != nil {

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"video_feedsystem/pkg/apperr"
@@ -53,13 +52,10 @@ func TestValidateUploadPath(t *testing.T) {
 	}
 }
 
-func TestSearchAccountsRejectsInvalidKeywordBeforeDatabaseQuery(t *testing.T) {
-	tests := []string{"   ", strings.Repeat("用", maxAccountSearchKeywordLength+1)}
-	for _, keyword := range tests {
-		_, err := SearchAccounts(context.Background(), keyword)
-		if err == nil {
-			t.Fatal("expected an error")
-		}
-		requireInvalidError(t, err)
+func TestSearchAccountsRejectsEmptyKeywordBeforeDatabaseQuery(t *testing.T) {
+	_, err := SearchAccounts(context.Background(), "   ")
+	if err == nil {
+		t.Fatal("expected an error")
 	}
+	requireInvalidError(t, err)
 }

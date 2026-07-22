@@ -94,3 +94,18 @@ func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
 		HasMore:    result.HasMore,
 	})
 }
+
+// ListHotFeed 返回全站热度最高的 10 个视频。
+func ListHotFeed(ctx context.Context, c *app.RequestContext) {
+	// 1. 查询热门视频
+	videos, err := service.GetHotFeed(ctx)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	// 2. 返回结果
+	c.JSON(consts.StatusOK, map[string]any{
+		"videos": newFeedVideoListResponse(videos),
+	})
+}

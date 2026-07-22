@@ -57,3 +57,21 @@ func ListFollowingFeed(ctx context.Context, followerID, cursor int64, limit int)
 	err := query.Scan(&rows).Error
 	return rows, err
 }
+
+// ListVideosByIDs 根据一组视频 ID 批量查询视频及作者信息。
+func ListVideosByIDs(ctx context.Context, videoIDs []int64) ([]FeedVideoRow, error) {
+	if len(videoIDs) == 0 {
+		return []FeedVideoRow{}, nil
+	}
+
+	var rows []FeedVideoRow
+
+	err := DB.WithContext(ctx).
+		Table("videos AS v").
+		Select("v.*,a.username AS author_username").
+		Joins("JOIN accounts AS a ON a.id = v.author_id").
+		Where("v.id IN ?", videoIDs).
+		Scan(&rows).Error
+
+	return rows, err
+}

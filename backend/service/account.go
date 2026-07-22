@@ -36,11 +36,10 @@ type AccountProfile struct {
 }
 
 const (
-	maxUsernameLength             = 32
-	minPasswordLength             = 8
-	maxPasswordLength             = 72
-	maxAccountSearchKeywordLength = 32
-	accountSearchLimit            = 20
+	maxUsernameLength  = 32
+	minPasswordLength  = 8
+	maxPasswordLength  = 72
+	accountSearchLimit = 20
 )
 
 // Register 校验注册信息、加密密码并创建账号。
@@ -163,10 +162,6 @@ func SearchAccounts(ctx context.Context, keyword string) ([]AccountSearchItem, e
 	if keyword == "" {
 		return nil, apperr.New(apperr.KindInvalid, "搜索关键词不能为空")
 	}
-	if utf8.RuneCountInString(keyword) > maxAccountSearchKeywordLength {
-		return nil, apperr.New(apperr.KindInvalid, "搜索关键词不能超过 32 个字符")
-	}
-
 	// 2. db.SearchAccountsByUsername，最多返回20个
 	rows, err := db.SearchAccountsByUsername(ctx, keyword, accountSearchLimit)
 	if err != nil {

@@ -2,7 +2,6 @@ package model
 
 import "time"
 
-// Comment 表示评论表；idx_video_comment 支持按视频和评论 ID 倒序分页。
 type Comment struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement:false;index:idx_video_comment,priority:2" json:"id"`
 	VideoID   int64     `gorm:"not null;index:idx_video_comment,priority:1" json:"video_id"`

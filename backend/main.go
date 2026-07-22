@@ -6,6 +6,7 @@ import (
 
 	"video_feedsystem/config"
 	"video_feedsystem/dal/db"
+	"video_feedsystem/dal/redis"
 	"video_feedsystem/router"
 	"video_feedsystem/utils"
 
@@ -24,6 +25,9 @@ func main() {
 	}
 	if err := utils.InitJWT(cfg.JWTSecret); err != nil {
 		log.Fatalf("JWT 初始化失败: %v", err)
+	}
+	if err := redis.InitRedis(cfg.RedisAddr); err != nil {
+		log.Fatal(err)
 	}
 
 	h := server.Default(
