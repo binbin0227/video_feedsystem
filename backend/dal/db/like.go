@@ -24,7 +24,6 @@ type LikedVideoRow struct {
 	CoverURL       string    `gorm:"column:cover_url"`
 	CreatedAt      time.Time `gorm:"column:created_at"`
 	LikeCount      int       `gorm:"column:like_count"`
-	Popularity     int       `gorm:"column:popularity"`
 }
 
 // CreateLike 在同一事务中创建点赞关系并增加视频点赞数。
@@ -104,8 +103,7 @@ func ListLikedVideos(ctx context.Context, accountID, cursor int64, limit int) ([
 			v.play_url,
 			v.cover_url,
 			v.created_at,
-			v.like_count,
-			v.popularity
+			v.like_count
 		`).
 		Joins("JOIN videos AS v ON v.id = l.video_id").
 		Joins("JOIN accounts AS a ON a.id = v.author_id").

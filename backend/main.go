@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"video_feedsystem/dal/db"
 	"video_feedsystem/dal/redis"
 	"video_feedsystem/router"
+	"video_feedsystem/service"
 	"video_feedsystem/utils"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
@@ -26,8 +28,12 @@ func main() {
 	if err := utils.InitJWT(cfg.JWTSecret); err != nil {
 		log.Fatalf("JWT 初始化失败: %v", err)
 	}
-	if err := redis.InitRedis(cfg.RedisAddr); err != nil {
-		log.Fatal(err)
+	if err := redis.InitRedis(cfg.RedisAddr, cfg.RedisPwd); err != nil {
+		log.Printf("Redis 初始化失败，服务将继续启动: %v", err)
+	} else if err := service.RebuildHotVideos(context.Background()); err != nil {
+		log.Printf("热门榜重建失败，服务将继续启动: %v", err)
+	} else {
+		log.Println("热门榜重建完成")
 	}
 
 	h := server.Default(
@@ -37,11 +43,8 @@ func main() {
 
 	h.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
-			"http://localhost:5173",
-			"http://127.0.0.1:5173",
 			"http://localhost:5189",
 			"http://127.0.0.1:5189",
-			// 樱花 FRP 会保留浏览器的 Origin，请显式允许当前自动 HTTPS 隧道地址。
 			"https://frp-fun.com:64718",
 		},
 		AllowMethods: []string{

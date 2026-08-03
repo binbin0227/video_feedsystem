@@ -8,6 +8,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  rank: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const coverFailed = ref(false)
@@ -50,6 +54,9 @@ function formatPublishedAt(value) {
       <span class="feed-video-card__likes" aria-label="点赞数">
         <span aria-hidden="true">♥</span>
         {{ video.like_count }}
+      </span>
+      <span v-if="rank > 0" class="feed-video-card__rank" :aria-label="`热门榜第 ${rank} 名`">
+        TOP {{ rank }}
       </span>
     </div>
 

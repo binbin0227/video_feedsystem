@@ -19,7 +19,6 @@ type VideoResponse struct {
 	CoverURL       string    `json:"cover_url"`
 	CreatedAt      time.Time `json:"created_at"`
 	LikeCount      int       `json:"like_count"`
-	Popularity     int       `json:"popularity"`
 }
 
 // newVideoResponse 将视频模型转换为对外响应，并把 int64 ID 转为字符串。
@@ -34,7 +33,6 @@ func newVideoResponse(video *model.Video) VideoResponse {
 		CoverURL:       video.CoverURL,
 		CreatedAt:      video.CreatedAt,
 		LikeCount:      video.LikeCount,
-		Popularity:     video.Popularity,
 	}
 }
 

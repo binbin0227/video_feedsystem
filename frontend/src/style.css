@@ -1586,10 +1586,10 @@ a:focus-visible {
 }
 
 .feed-video-card__type,
-.feed-video-card__likes {
+.feed-video-card__likes,
+.feed-video-card__rank {
   position: absolute;
   z-index: 1;
-  top: 14px;
   padding: 7px 9px;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 999px;
@@ -1601,11 +1601,13 @@ a:focus-visible {
 }
 
 .feed-video-card__type {
+  top: 14px;
   left: 14px;
   letter-spacing: 0.12em;
 }
 
 .feed-video-card__likes {
+  top: 14px;
   right: 14px;
   display: inline-flex;
   align-items: center;
@@ -1614,6 +1616,15 @@ a:focus-visible {
 
 .feed-video-card__likes span {
   color: var(--accent);
+}
+
+.feed-video-card__rank {
+  bottom: 14px;
+  left: 14px;
+  border-color: rgba(255, 199, 92, 0.34);
+  color: #ffe3a3;
+  background: rgba(46, 30, 8, 0.76);
+  letter-spacing: 0.08em;
 }
 
 .feed-video-card__body {
@@ -2966,6 +2977,7 @@ a:focus-visible {
 }
 
 .liked-page,
+.hot-page,
 .account-list-page,
 .search-page {
   display: grid;
@@ -3321,7 +3333,7 @@ a:focus-visible {
     gap: 14px;
   }
 
-  .main-nav a:nth-child(2) {
+  .main-nav__following {
     display: none;
   }
 
@@ -3410,7 +3422,7 @@ a:focus-visible {
     border-top: 1px solid var(--border);
   }
 
-  .main-nav a:nth-child(2) {
+  .main-nav__following {
     display: inline-flex;
   }
 

@@ -6,10 +6,12 @@ import (
 	"strings"
 	"unicode/utf8"
 	"video_feedsystem/dal/db"
+	"video_feedsystem/dal/redis"
 	"video_feedsystem/model"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/utils"
 
+	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"gorm.io/gorm"
 )
 
@@ -80,10 +82,15 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 		return nil, apperr.Wrap(apperr.KindInternal, "发布评论失败，请稍后再试", err)
 	}
 
-	// 7. 只为响应补充作者信息，不让 GORM 在创建评论时重复保存账号关联
+	// 7. 评论创建成功后增加 Redis 热度
+	if err := redis.ChangeVideoHotScore(ctx, videoID, commentHotScore); err != nil {
+		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
+	}
+
+	// 8. 只为响应补充作者信息，不让 GORM 在创建评论时重复保存账号关联
 	comment.Account = *account
 
-	// 8. 返回评论
+	// 9. 返回评论
 	return comment, nil
 }
 
@@ -167,6 +174,11 @@ func DeleteComment(ctx context.Context, accountID, commentID int64) error {
 			return apperr.New(apperr.KindNotFound, "评论不存在")
 		}
 		return apperr.Wrap(apperr.KindInternal, "删除评论失败，请稍后再试", err)
+	}
+
+	// 5. 评论删除成功后减少 Redis 热度
+	if err := redis.ChangeVideoHotScore(ctx, comment.VideoID, -commentHotScore); err != nil {
+		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", comment.VideoID, err)
 	}
 
 	return nil

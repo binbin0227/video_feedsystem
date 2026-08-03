@@ -94,6 +94,7 @@ func UploadCover(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "封面文件不能超过10MB"))
 		return
 	}
+	
 	// 4. 保存文件
 	coverURL, err := saveUploadedFile(c, file, authorID, "covers", ext)
 	if err != nil {
@@ -167,7 +168,6 @@ func ListByAuthorID(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
 	limit, err := parseOptionalLimit(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)

@@ -52,7 +52,7 @@ func FindVideoByID(ctx context.Context, videoID int64) (*model.Video, error) {
 	return &video, nil
 }
 
-// FindVideoWithAuthorByID 查询视频详情并预加载作者，只供需要展示作者信息的场景使用。
+// FindVideoWithAuthorByID 查询视频详情并预加载作者。
 func FindVideoWithAuthorByID(ctx context.Context, videoID int64) (*model.Video, error) {
 	var video model.Video
 	err := DB.WithContext(ctx).Preload("Author").First(&video, videoID).Error

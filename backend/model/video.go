@@ -12,7 +12,6 @@ type Video struct {
 	CreatedAt   time.Time `gorm:"index" json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	LikeCount   int       `gorm:"default:0" json:"like_count"`
-	Popularity  int       `gorm:"default:0" json:"popularity"`
 
 	// Author 建立 videos.author_id 到 accounts.id 的真实外键关联。
 	Author Account `gorm:"foreignKey:AuthorID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"-"`

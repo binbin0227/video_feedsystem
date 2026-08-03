@@ -31,7 +31,6 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
-
 	if videoID <= 0 {
 		return apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
@@ -61,8 +60,13 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 		return apperr.Wrap(apperr.KindInternal, "点赞失败，请稍后再试", err)
 	}
 
-	// 5. 点赞成功后增加 Redis 热度
-	if err := redis.ChangeVideoHotScore(ctx, videoID, 3); err != nil {
+	// 5. 点赞数已经改变，删除旧的视频详情缓存
+	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
+		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+	}
+
+	// 6. 点赞成功后增加 Redis 热度
+	if err := redis.ChangeVideoHotScore(ctx, videoID, likeHotScore); err != nil {
 		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
 	}
 
@@ -91,8 +95,13 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 		return apperr.Wrap(apperr.KindInternal, "取消点赞失败，请稍后再试", err)
 	}
 
-	// 3. 取消点赞成功后减少 Redis 热度
-	if err := redis.ChangeVideoHotScore(ctx, videoID, -3); err != nil {
+	// 3. 点赞数已经改变，删除旧的视频详情缓存
+	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
+		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+	}
+
+	// 4. 取消点赞成功后减少 Redis 热度
+	if err := redis.ChangeVideoHotScore(ctx, videoID, -likeHotScore); err != nil {
 		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
 	}
 
@@ -160,7 +169,6 @@ func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) 
 			CoverURL:    row.CoverURL,
 			CreatedAt:   row.CreatedAt,
 			LikeCount:   row.LikeCount,
-			Popularity:  row.Popularity,
 		})
 	}
 

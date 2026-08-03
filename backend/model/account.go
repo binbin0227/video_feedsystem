@@ -2,7 +2,6 @@ package model
 
 import "time"
 
-
 type Account struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement:false" json:"id"`
 	Username  string    `gorm:"type:varchar(32);uniqueIndex;not null" json:"username"`

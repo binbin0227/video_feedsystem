@@ -122,11 +122,11 @@ func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) 
 }
 
 // GetHotFeed 查询热门视频
-func GetHotFeed(ctx context.Context) ([]FeedVideo,error) {
+func GetHotFeed(ctx context.Context) ([]FeedVideo, error) {
 	// 1. 从 Redis 查询热度最高的 10 个视频 ID
-	videoIDs,err:=redis.ListHotVideoIDs(ctx,int64(hotFeedLimit))
-	if err!=nil{
-		return nil,apperr.Wrap(apperr.KindInternal,"查询热门视频失败，请稍后再试",err)
+	videoIDs, err := redis.ListHotVideoIDs(ctx, int64(hotFeedLimit))
+	if err != nil {
+		return nil, apperr.Wrap(apperr.KindInternal, "查询热门视频失败，请稍后再试", err)
 	}
 
 	// Redis 热门榜没有数据
@@ -135,15 +135,15 @@ func GetHotFeed(ctx context.Context) ([]FeedVideo,error) {
 	}
 
 	// 2. db.ListVideosByIDs 查询完整视频信息
-	rows,err:=db.ListVideosByIDs(ctx,videoIDs)
-	if err!=nil{
-		return nil,apperr.Wrap(apperr.KindInternal,"查询热门视频失败，请稍后再试",err)
+	rows, err := db.ListVideosByIDs(ctx, videoIDs)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.KindInternal, "查询热门视频失败，请稍后再试", err)
 	}
 
 	// 3. 将 MySQL 查询结果按照视频 ID 放入 map
-	rowMap:=make(map[int64]db.FeedVideoRow,len(rows))
-	for _,row := range rows{
-		rowMap[row.ID]=row
+	rowMap := make(map[int64]db.FeedVideoRow, len(rows))
+	for _, row := range rows {
+		rowMap[row.ID] = row
 	}
 
 	// 4. 按照 Redis 返回的热度顺序重新排列

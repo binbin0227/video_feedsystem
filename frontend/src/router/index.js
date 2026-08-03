@@ -24,6 +24,11 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/hot',
+    name: 'hot-videos',
+    component: () => import('../views/HotVideosView.vue'),
+  },
+  {
     path: '/videos/:videoId',
     name: 'video-detail',
     component: () => import('../views/VideoDetailView.vue'),

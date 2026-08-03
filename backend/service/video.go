@@ -11,10 +11,12 @@ import (
 	"unicode/utf8"
 
 	"video_feedsystem/dal/db"
+	"video_feedsystem/dal/redis"
 	"video_feedsystem/model"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/utils"
 
+	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"gorm.io/gorm"
 )
 
@@ -31,6 +33,39 @@ type AuthorVideoListResult struct {
 	Videos     []model.Video
 	NextCursor int64
 	HasMore    bool
+}
+
+// videoFromDetailCache 将 Redis 缓存转换为业务层使用的视频模型。
+func videoFromDetailCache(cache *redis.VideoDetailCache) *model.Video {
+	return &model.Video{
+		ID:          cache.ID,
+		AuthorID:    cache.AuthorID,
+		Title:       cache.Title,
+		Description: cache.Description,
+		PlayURL:     cache.PlayURL,
+		CoverURL:    cache.CoverURL,
+		CreatedAt:   cache.CreatedAt,
+		LikeCount:   cache.LikeCount,
+		Author: model.Account{
+			ID:       cache.AuthorID,
+			Username: cache.AuthorUsername,
+		},
+	}
+}
+
+// newVideoDetailCache 将 MySQL 查询到的视频转换为 Redis 缓存结构。
+func newVideoDetailCache(video *model.Video) *redis.VideoDetailCache {
+	return &redis.VideoDetailCache{
+		ID:             video.ID,
+		AuthorID:       video.AuthorID,
+		AuthorUsername: video.Author.Username,
+		Title:          video.Title,
+		Description:    video.Description,
+		PlayURL:        video.PlayURL,
+		CoverURL:       video.CoverURL,
+		CreatedAt:      video.CreatedAt,
+		LikeCount:      video.LikeCount,
+	}
 }
 
 // validateUploadPath 校验媒体路径属于当前用户和指定上传分类。
@@ -179,14 +214,14 @@ func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (Aut
 
 	// 2. 确认作者存在
 	_, err := db.FindAccountByID(ctx, authorID)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return AuthorVideoListResult{}, apperr.New(apperr.KindNotFound, "用户不存在")
-	}
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return AuthorVideoListResult{}, apperr.New(apperr.KindNotFound, "用户不存在")
+		}
 		return AuthorVideoListResult{}, apperr.Wrap(apperr.KindInternal, "查询用户失败，请稍后再试", err)
 	}
 
-	// 3. 多查询一条，判断是否还有下一页
+	// 3. db.ListByAuthorID 多查询一条，判断是否还有下一页
 	videos, err := db.ListByAuthorID(ctx, authorID, cursor, limit+1)
 	if err != nil {
 		return AuthorVideoListResult{}, apperr.Wrap(apperr.KindInternal, "查询用户发布的视频失败，请稍后再试", err)
@@ -210,20 +245,35 @@ func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (Aut
 	}, nil
 }
 
-// GetVideoDetail 查询单个视频，不存在时返回 404 类业务错误。
+// GetVideoDetail 查询单个视频。
 func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 	// 1. 校验参数
 	if videoID <= 0 {
 		return nil, apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
 
-	// 2. 查询视频并预加载作者，供详情响应返回作者用户名。
-	video, err := db.FindVideoWithAuthorByID(ctx, videoID)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, apperr.New(apperr.KindNotFound, "视频不存在")
-	}
+	// 2. 优先查询 Redis 缓存
+	cache, found, err := redis.GetVideoDetailCache(ctx, videoID)
 	if err != nil {
+		hlog.CtxWarnf(ctx, "查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+	} else if found {
+		return videoFromDetailCache(cache), nil
+	}
+
+	// 3. 缓存未命中或 Redis 出错，查询 MySQL
+	video, err := db.FindVideoWithAuthorByID(ctx, videoID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperr.New(apperr.KindNotFound, "视频不存在")
+		}
 		return nil, apperr.Wrap(apperr.KindInternal, "查询视频详情失败，请稍后再试", err)
 	}
+
+	// 4. 将 MySQL 查询结果回填 Redis
+	if err := redis.SetVideoDetailCache(ctx, newVideoDetailCache(video)); err != nil {
+		hlog.CtxWarnf(ctx, "写入 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+	}
+
+	// 5. 返回 MySQL 查询结果
 	return video, nil
 }

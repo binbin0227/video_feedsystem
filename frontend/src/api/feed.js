@@ -21,3 +21,8 @@ export async function getFollowingFeed({ cursor = '', limit = 6 } = {}) {
   const response = await http.get('/feed/following', { params })
   return response.data
 }
+
+export async function getHotFeed() {
+  const response = await http.get('/feed/hot')
+  return response.data
+}

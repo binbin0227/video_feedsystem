@@ -55,7 +55,8 @@ onBeforeUnmount(() => {
 
         <nav class="main-nav" aria-label="主要导航">
           <RouterLink to="/">首页</RouterLink>
-          <RouterLink to="/following">关注流</RouterLink>
+          <RouterLink to="/hot">热门</RouterLink>
+          <RouterLink class="main-nav__following" to="/following">关注流</RouterLink>
           <RouterLink to="/search">搜索用户</RouterLink>
         </nav>
 

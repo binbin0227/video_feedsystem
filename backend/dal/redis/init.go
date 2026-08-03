@@ -9,9 +9,10 @@ import (
 
 var rdb *goredis.Client
 
-func InitRedis(addr string) error {
+func InitRedis(addr string, pwd string) error {
 	rdb = goredis.NewClient(&goredis.Options{
-		Addr: addr,
+		Addr:     addr,
+		Password: pwd,
 	})
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
