@@ -27,28 +27,21 @@ type LikedVideoListResult struct {
 
 // LikeVideo 为当前用户创建点赞关系并更新视频点赞数。
 func LikeVideo(ctx context.Context, accountID, videoID int64) error {
-	// 1. 校验参数
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
 	if videoID <= 0 {
 		return apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
-
-	// 2. 生成点赞记录 ID
 	likeID, err := utils.GenerateID()
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "生成点赞记录失败", err)
 	}
-
-	// 3. 打包 like
 	like := &model.Like{
 		ID:        likeID,
 		VideoID:   videoID,
 		AccountID: accountID,
 	}
-
-	// 4. db.CreateLike
 	err = db.CreateLike(ctx, like)
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -59,13 +52,10 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 		}
 		return apperr.Wrap(apperr.KindInternal, "点赞失败，请稍后再试", err)
 	}
-
-	// 5. 点赞数已经改变，删除旧的视频详情缓存
+	// 点赞数变化后删除旧详情缓存；Redis 失败不回滚 MySQL 事务。
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
 		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
-
-	// 6. 点赞成功后增加 Redis 热度
 	if err := redis.ChangeVideoHotScore(ctx, videoID, likeHotScore); err != nil {
 		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
 	}
@@ -75,15 +65,12 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 
 // UnlikeVideo 删除当前用户的点赞关系并更新视频点赞数。
 func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
-	// 1. 校验合法性
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
 	if videoID <= 0 {
 		return apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
-
-	// 2. db.DeleteLike
 	err := db.DeleteLike(ctx, accountID, videoID)
 	if err != nil {
 		if errors.Is(err, db.ErrLikeNotFound) {
@@ -94,13 +81,10 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 		}
 		return apperr.Wrap(apperr.KindInternal, "取消点赞失败，请稍后再试", err)
 	}
-
-	// 3. 点赞数已经改变，删除旧的视频详情缓存
+	// 点赞数变化后删除旧详情缓存；Redis 失败不回滚 MySQL 事务。
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
 		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
-
-	// 4. 取消点赞成功后减少 Redis 热度
 	if err := redis.ChangeVideoHotScore(ctx, videoID, -likeHotScore); err != nil {
 		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
 	}
@@ -110,15 +94,12 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 
 // CheckLikeStatus 查询当前用户是否已经点赞指定视频。
 func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error) {
-	// 1. 校验合法性
 	if accountID <= 0 {
 		return false, apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
 	if videoID <= 0 {
 		return false, apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
-
-	// 2. db.CheckLikeExist
 	liked, err := db.CheckLikeExist(ctx, accountID, videoID)
 	if err != nil {
 		return false, apperr.Wrap(apperr.KindInternal, "查询点赞状态失败，请稍后再试", err)
@@ -129,7 +110,6 @@ func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error
 
 // GetLikedVideoList 分页查询当前用户点赞过的视频。
 func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) (LikedVideoListResult, error) {
-	// 1. 校验参数
 	if accountID <= 0 {
 		return LikedVideoListResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
@@ -144,8 +124,7 @@ func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) 
 	} else if limit > maxLikedVideoLimit {
 		limit = maxLikedVideoLimit
 	}
-
-	// 2. 多查询一条，判断是否还有下一页
+	// 多查询一条来判断是否还有下一页。
 	rows, err := db.ListLikedVideos(ctx, accountID, cursor, limit+1)
 	if err != nil {
 		return LikedVideoListResult{}, apperr.Wrap(apperr.KindInternal, "查询点赞视频列表失败，请稍后再试", err)
@@ -155,8 +134,6 @@ func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) 
 	if hasMore {
 		rows = rows[:limit]
 	}
-
-	// 3. 将 DAL 的 JOIN 查询结果转换为 Video
 	videos := make([]model.Video, 0, len(rows))
 	for _, row := range rows {
 		videos = append(videos, model.Video{
@@ -171,8 +148,6 @@ func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) 
 			LikeCount:   row.LikeCount,
 		})
 	}
-
-	// 4. 使用最后一条点赞关系的 ID 作为游标
 	var nextCursor int64
 	if hasMore && len(rows) > 0 {
 		nextCursor = rows[len(rows)-1].RelationID

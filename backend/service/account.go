@@ -44,7 +44,6 @@ const (
 
 // Register 校验注册信息、加密密码并创建账号。
 func Register(ctx context.Context, username, password string) error {
-	// 1. 校验合法性
 	username = strings.TrimSpace(username)
 	if username == "" || password == "" {
 		return apperr.New(apperr.KindInvalid, "用户名或密码不能为空")
@@ -59,8 +58,6 @@ func Register(ctx context.Context, username, password string) error {
 	if passwordLength > maxPasswordLength {
 		return apperr.New(apperr.KindInvalid, "密码不能超过 72 个字节")
 	}
-
-	// 2. 检查用户名是否已被注册
 	exists, err := db.CheckUsernameExist(ctx, username)
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "注册失败，请稍后再试", err)
@@ -68,20 +65,14 @@ func Register(ctx context.Context, username, password string) error {
 	if exists {
 		return apperr.New(apperr.KindConflict, "用户名已被注册")
 	}
-
-	// 3. 使用雪花算法生成账号 ID
 	accountID, err := utils.GenerateID()
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "生成账号 ID 失败", err)
 	}
-
-	// 4. 对密码进行加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "密码加密失败", err)
 	}
-
-	// 5. 打包并调用 db.CreateAccount
 	account := &model.Account{
 		ID:       accountID,
 		Username: username,
@@ -99,13 +90,10 @@ func Register(ctx context.Context, username, password string) error {
 
 // Login 校验用户名和密码，成功后签发 JWT。
 func Login(ctx context.Context, username, password string) (string, error) {
-	// 1. 校验合法性
 	username = strings.TrimSpace(username)
 	if username == "" || password == "" {
 		return "", apperr.New(apperr.KindInvalid, "用户名或密码不能为空")
 	}
-
-	// 2. 调用 db.FindByUsername 查询账号
 	account, err := db.FindAccountByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -113,13 +101,9 @@ func Login(ctx context.Context, username, password string) (string, error) {
 		}
 		return "", apperr.Wrap(apperr.KindInternal, "登录失败，请稍后再试", err)
 	}
-
-	// 3. 将加密后的前端密码与数据库密码进行比对
 	if err := bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(password)); err != nil {
 		return "", apperr.New(apperr.KindUnauthorized, "用户名或密码错误")
 	}
-
-	// 4. 返回 token
 	token, err := utils.GenerateToken(account.ID)
 	if err != nil {
 		return "", apperr.Wrap(apperr.KindInternal, "生成登录凭证失败，请稍后再试", err)
@@ -129,12 +113,9 @@ func Login(ctx context.Context, username, password string) (string, error) {
 
 // GetAccountProfile 查询指定账号的主页信息。
 func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, error) {
-	// 1. 参数校验
 	if accountID <= 0 {
 		return nil, apperr.New(apperr.KindInvalid, "用户ID不合法")
 	}
-
-	// 2. db.FindAccountProfile
 	row, err := db.FindAccountProfile(ctx, accountID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -142,8 +123,6 @@ func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, e
 		}
 		return nil, apperr.Wrap(apperr.KindInternal, "查询用户主页失败，请稍后再试", err)
 	}
-
-	// 3. 打包
 	return &AccountProfile{
 		AccountID:         row.AccountID,
 		Username:          row.Username,
@@ -157,18 +136,14 @@ func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, e
 
 // SearchAccounts 根据用户名关键词搜索账号。
 func SearchAccounts(ctx context.Context, keyword string) ([]AccountSearchItem, error) {
-	// 1. 参数校验
 	keyword = strings.TrimSpace(keyword)
 	if keyword == "" {
 		return nil, apperr.New(apperr.KindInvalid, "搜索关键词不能为空")
 	}
-	// 2. db.SearchAccountsByUsername，最多返回20个
 	rows, err := db.SearchAccountsByUsername(ctx, keyword, accountSearchLimit)
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "搜索用户失败，请稍后再试", err)
 	}
-
-	// 3. 打包
 	accounts := make([]AccountSearchItem, 0, len(rows))
 	for _, row := range rows {
 		accounts = append(accounts, AccountSearchItem{

@@ -51,6 +51,8 @@ func statusFromKind(kind apperr.Kind) int {
 		return consts.StatusNotFound
 	case apperr.KindConflict:
 		return consts.StatusConflict
+	case apperr.KindTooManyRequests:
+		return consts.StatusTooManyRequests
 	default:
 		return consts.StatusInternalServerError
 	}

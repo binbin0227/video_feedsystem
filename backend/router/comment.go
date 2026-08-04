@@ -1,6 +1,7 @@
 package router
 
 import (
+	"time"
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
@@ -15,7 +16,7 @@ func registerCommentRoutes(h *server.Hertz) {
 
 		authorized := comment.Group("", middleware.JWTAuth())
 		{
-			authorized.POST("/publish", handler.PublishComment)
+			authorized.POST("/publish", middleware.RateLimitByAccount("comment", 20, time.Minute), handler.PublishComment)
 			authorized.DELETE("/delete", handler.DeleteComment)
 		}
 	}

@@ -4,12 +4,13 @@ package apperr
 type Kind string
 
 const (
-	KindInvalid      Kind = "INVALID_ARGUMENT"
-	KindUnauthorized Kind = "UNAUTHORIZED"
-	KindForbidden    Kind = "FORBIDDEN"
-	KindNotFound     Kind = "NOT_FOUND"
-	KindConflict     Kind = "CONFLICT"
-	KindInternal     Kind = "INTERNAL_ERROR"
+	KindInvalid         Kind = "INVALID_ARGUMENT"
+	KindUnauthorized    Kind = "UNAUTHORIZED"
+	KindForbidden       Kind = "FORBIDDEN"
+	KindNotFound        Kind = "NOT_FOUND"
+	KindConflict        Kind = "CONFLICT"
+	KindInternal        Kind = "INTERNAL_ERROR"
+	KindTooManyRequests Kind = "TOO_MANY_REQUESTS"
 )
 
 // AppError 同时保存给用户看的信息和供开发者排查的底层错误。

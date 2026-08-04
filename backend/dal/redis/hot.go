@@ -9,16 +9,19 @@ import (
 
 const hotVideoKey = "video:hot"
 
+// HotVideoScore 表示一个视频及其重建排行榜时使用的热度值。
 type HotVideoScore struct {
 	VideoID int64
 	Score   float64
 }
 
+// ChangeVideoHotScore 按增量更新指定视频的热度值。
 func ChangeVideoHotScore(ctx context.Context, videoID int64, delta float64) error {
 	member := strconv.FormatInt(videoID, 10)
 	return rdb.ZIncrBy(ctx, hotVideoKey, delta, member).Err()
 }
 
+// ListHotVideoIDs 按热度从高到低返回得分大于零的视频 ID。
 func ListHotVideoIDs(ctx context.Context, limit int64) ([]int64, error) {
 	members, err := rdb.ZRevRangeByScore(ctx, hotVideoKey, &goredis.ZRangeBy{
 		Max:    "+inf",
@@ -44,6 +47,7 @@ func ListHotVideoIDs(ctx context.Context, limit int64) ([]int64, error) {
 	return videoIDs, nil
 }
 
+// ReplaceHotVideoScores 使用给定数据整体替换热门视频榜。
 func ReplaceHotVideoScores(ctx context.Context, scores []HotVideoScore) error {
 	members := make([]goredis.Z, 0, len(scores))
 	for _, item := range scores {

@@ -30,7 +30,6 @@ type CommentListResult struct {
 
 // CreateComment 校验视频和用户后创建评论，并补充响应所需的作者信息。
 func CreateComment(ctx context.Context, accountID, videoID int64, content string) (*model.Comment, error) {
-	// 1. 校验合法性
 	content = strings.TrimSpace(content)
 	if accountID <= 0 {
 		return nil, apperr.New(apperr.KindUnauthorized, "用户身份无效")
@@ -44,8 +43,6 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 	if utf8.RuneCountInString(content) > maxCommentContentLength {
 		return nil, apperr.New(apperr.KindInvalid, "评论内容不能超过500个字符")
 	}
-
-	// 2. 确认视频存在
 	_, err := db.FindVideoByID(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,8 +50,6 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 		}
 		return nil, apperr.Wrap(apperr.KindInternal, "查询视频失败，请稍后再试", err)
 	}
-
-	// 3. 查询评论作者，保证发布成功后的响应可以立即返回用户名
 	account, err := db.FindAccountByID(ctx, accountID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,41 +57,30 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 		}
 		return nil, apperr.Wrap(apperr.KindInternal, "查询用户失败，请稍后再试", err)
 	}
-
-	// 4. 生成 commentID
 	commentID, err := utils.GenerateID()
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "生成评论ID失败", err)
 	}
-
-	// 5. 打包
 	comment := &model.Comment{
 		ID:        commentID,
 		VideoID:   videoID,
 		AccountID: accountID,
 		Content:   content,
 	}
-
-	// 6. db.CreateComment
 	if err := db.CreateComment(ctx, comment); err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "发布评论失败，请稍后再试", err)
 	}
-
-	// 7. 评论创建成功后增加 Redis 热度
+	// Redis 更新失败不影响已经提交到 MySQL 的评论。
 	if err := redis.ChangeVideoHotScore(ctx, videoID, commentHotScore); err != nil {
 		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
 	}
-
-	// 8. 只为响应补充作者信息，不让 GORM 在创建评论时重复保存账号关联
+	// 只补充响应中的作者信息，不让 GORM 再次保存账号关联。
 	comment.Account = *account
-
-	// 9. 返回评论
 	return comment, nil
 }
 
 // GetCommentList 分页查询指定视频的评论。
 func GetCommentList(ctx context.Context, videoID, cursor int64, limit int) (CommentListResult, error) {
-	// 1. 校验参数
 	if videoID <= 0 {
 		return CommentListResult{}, apperr.New(apperr.KindInvalid, "视频 ID 不合法")
 	}
@@ -111,8 +95,6 @@ func GetCommentList(ctx context.Context, videoID, cursor int64, limit int) (Comm
 	} else if limit > maxCommentLimit {
 		limit = maxCommentLimit
 	}
-
-	// 2. 确认视频存在
 	_, err := db.FindVideoByID(ctx, videoID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return CommentListResult{}, apperr.New(apperr.KindNotFound, "视频不存在")
@@ -120,8 +102,7 @@ func GetCommentList(ctx context.Context, videoID, cursor int64, limit int) (Comm
 	if err != nil {
 		return CommentListResult{}, apperr.Wrap(apperr.KindInternal, "查询视频失败，请稍后再试", err)
 	}
-
-	// 3. 多查询一条，用来判断是否还有下一页
+	// 多查询一条来判断是否还有下一页。
 	comments, err := db.ListCommentsByVideoID(ctx, videoID, cursor, limit+1)
 	if err != nil {
 		return CommentListResult{}, apperr.Wrap(apperr.KindInternal, "查询评论失败，请稍后再试", err)
@@ -130,8 +111,6 @@ func GetCommentList(ctx context.Context, videoID, cursor int64, limit int) (Comm
 	if hasMore {
 		comments = comments[:limit]
 	}
-
-	// 4. 最后一条评论的 ID 作为下一页游标
 	var nextCursor int64
 	if hasMore && len(comments) > 0 {
 		nextCursor = comments[len(comments)-1].ID
@@ -146,15 +125,12 @@ func GetCommentList(ctx context.Context, videoID, cursor int64, limit int) (Comm
 
 // DeleteComment 校验评论归属后删除当前用户自己的评论。
 func DeleteComment(ctx context.Context, accountID, commentID int64) error {
-	// 1. 校验参数
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
 	}
 	if commentID <= 0 {
 		return apperr.New(apperr.KindInvalid, "评论 ID 不合法")
 	}
-
-	// 2. db.FindCommentByID
 	comment, err := db.FindCommentByID(ctx, commentID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return apperr.New(apperr.KindNotFound, "评论不存在")
@@ -162,21 +138,16 @@ func DeleteComment(ctx context.Context, accountID, commentID int64) error {
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "查询评论失败，请稍后再试", err)
 	}
-
-	// 3. 检查评论所有权
 	if comment.AccountID != accountID {
 		return apperr.New(apperr.KindForbidden, "无权删除该评论")
 	}
-
-	// 4. db.DeleteCommentByID
 	if err := db.DeleteCommentByID(ctx, commentID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperr.New(apperr.KindNotFound, "评论不存在")
 		}
 		return apperr.Wrap(apperr.KindInternal, "删除评论失败，请稍后再试", err)
 	}
-
-	// 5. 评论删除成功后减少 Redis 热度
+	// Redis 更新失败不回滚已经删除的 MySQL 评论。
 	if err := redis.ChangeVideoHotScore(ctx, comment.VideoID, -commentHotScore); err != nil {
 		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", comment.VideoID, err)
 	}

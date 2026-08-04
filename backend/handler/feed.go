@@ -19,7 +19,6 @@ type FeedResponse struct {
 
 // ListFeed 分页返回公共视频流。
 func ListFeed(ctx context.Context, c *app.RequestContext) {
-	// 1. 读取 cursor limit
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
@@ -30,21 +29,15 @@ func ListFeed(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. service.GetFeed
 	result, err := service.GetFeed(ctx, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. 处理 nextCursor
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-
-	// 4. 返回结果
 	c.JSON(consts.StatusOK, FeedResponse{
 		Videos:     newFeedVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
@@ -54,14 +47,11 @@ func ListFeed(ctx context.Context, c *app.RequestContext) {
 
 // ListFollowingFeed 分页返回当前用户的关注流。
 func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
-	// 1. 获取当前登录用户
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 解析 cursor 和 limit
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
@@ -73,21 +63,15 @@ func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. 查询关注流
 	result, err := service.GetFollowingFeed(ctx, followerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 4. 将游标转换为字符串
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-
-	// 5. 返回结果
 	c.JSON(consts.StatusOK, FeedResponse{
 		Videos:     newFeedVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
@@ -97,14 +81,11 @@ func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
 
 // ListHotFeed 返回全站热度最高的 10 个视频。
 func ListHotFeed(ctx context.Context, c *app.RequestContext) {
-	// 1. 查询热门视频
 	videos, err := service.GetHotFeed(ctx)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 返回结果
 	c.JSON(consts.StatusOK, map[string]any{
 		"videos": newFeedVideoListResponse(videos),
 	})

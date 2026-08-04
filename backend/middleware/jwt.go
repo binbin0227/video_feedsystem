@@ -14,7 +14,6 @@ import (
 // JWTAuth 校验 Bearer Token，并把账号 ID 写入请求上下文供后续 Handler 使用。
 func JWTAuth() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		// 1. 从 HTTP Header 中获取 Authorization: Bearer <token>
 		authHeader := string(c.GetHeader("Authorization"))
 		if authHeader == "" {
 			httpx.WriteError(ctx, c, apperr.New(apperr.KindUnauthorized, "请求未携带 Token"))
@@ -28,16 +27,12 @@ func JWTAuth() app.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		// 2. 检查 token 有效性
 		claims, err := utils.ParseToken(parts[1])
 		if err != nil {
 			httpx.WriteError(ctx, c, apperr.New(apperr.KindUnauthorized, "Token 已过期或无效"))
 			c.Abort()
 			return
 		}
-
-		// 3. 验证成功，将 accountID 写入 c
 		c.Set("accountID", claims.AccountID)
 		c.Next(ctx)
 	}

@@ -103,7 +103,6 @@ func validateUploadedFile(uploadURL, label string) error {
 
 // PublishVideo 校验视频信息并写入数据库。
 func PublishVideo(ctx context.Context, authorID int64, title, description, playURL, coverURL string) (*model.Video, error) {
-	// 1. 参数校验
 	title = strings.TrimSpace(title)
 	description = strings.TrimSpace(description)
 	playURL = strings.TrimSpace(playURL)
@@ -123,8 +122,6 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 	if len(playURL) > maxVideoURLLength || len(coverURL) > maxVideoURLLength {
 		return nil, apperr.New(apperr.KindInvalid, "视频或封面路径过长")
 	}
-
-	// 2. 文件路径路径校验
 	if err := validateUploadPath(playURL, "videos", authorID); err != nil {
 		return nil, err
 	}
@@ -144,8 +141,7 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 	if err := validateUploadedFile(coverURL, "封面"); err != nil {
 		return nil, err
 	}
-
-	// 3. 查询当前作者，保证发布响应可以直接返回用户名。
+	// 提前查询作者，确保新建和幂等返回都带有用户名。
 	author, err := db.FindAccountByID(ctx, authorID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperr.New(apperr.KindUnauthorized, "用户不存在")
@@ -153,8 +149,6 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "查询用户失败，请稍后再试", err)
 	}
-
-	// 4. 相同上传文件只允许发布一次；客户端因网络或页面跳转失败重试时直接返回原记录。
 	existingVideo, err := db.FindVideoByAuthorAndMedia(ctx, authorID, playURL, coverURL)
 	if err == nil {
 		existingVideo.Author = *author
@@ -163,14 +157,10 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperr.Wrap(apperr.KindInternal, "检查视频发布状态失败，请稍后再试", err)
 	}
-
-	// 5. 生成视频 ID
 	videoID, err := utils.GenerateID()
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "生成视频ID失败", err)
 	}
-
-	// 6. 打包并存入数据库
 	video := &model.Video{
 		ID:          videoID,
 		AuthorID:    authorID,
@@ -196,7 +186,6 @@ func PublishVideo(ctx context.Context, authorID int64, title, description, playU
 
 // ListByAuthorID 查询指定作者的视频列表；没有数据时返回空数组。
 func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (AuthorVideoListResult, error) {
-	// 1. 校验参数
 	if authorID <= 0 {
 		return AuthorVideoListResult{}, apperr.New(apperr.KindInvalid, "账号ID不合法")
 	}
@@ -211,8 +200,6 @@ func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (Aut
 	} else if limit > maxAuthorVideoLimit {
 		limit = maxAuthorVideoLimit
 	}
-
-	// 2. 确认作者存在
 	_, err := db.FindAccountByID(ctx, authorID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -220,8 +207,7 @@ func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (Aut
 		}
 		return AuthorVideoListResult{}, apperr.Wrap(apperr.KindInternal, "查询用户失败，请稍后再试", err)
 	}
-
-	// 3. db.ListByAuthorID 多查询一条，判断是否还有下一页
+	// 多查询一条来判断是否还有下一页。
 	videos, err := db.ListByAuthorID(ctx, authorID, cursor, limit+1)
 	if err != nil {
 		return AuthorVideoListResult{}, apperr.Wrap(apperr.KindInternal, "查询用户发布的视频失败，请稍后再试", err)
@@ -231,8 +217,6 @@ func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (Aut
 	if hasMore {
 		videos = videos[:limit]
 	}
-
-	// 4. 使用最后一个视频的 ID 作为下一页游标
 	var nextCursor int64
 	if hasMore && len(videos) > 0 {
 		nextCursor = videos[len(videos)-1].ID
@@ -247,33 +231,35 @@ func ListByAuthorID(ctx context.Context, authorID, cursor int64, limit int) (Aut
 
 // GetVideoDetail 查询单个视频。
 func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
-	// 1. 校验参数
 	if videoID <= 0 {
 		return nil, apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
 
-	// 2. 优先查询 Redis 缓存
+	// Redis 异常时回退到 MySQL，不让缓存故障影响详情接口。
 	cache, found, err := redis.GetVideoDetailCache(ctx, videoID)
 	if err != nil {
 		hlog.CtxWarnf(ctx, "查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	} else if found {
+		if cache.NotFound {
+			return nil, apperr.New(apperr.KindNotFound, "视频不存在")
+		}
 		return videoFromDetailCache(cache), nil
 	}
 
-	// 3. 缓存未命中或 Redis 出错，查询 MySQL
 	video, err := db.FindVideoWithAuthorByID(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if cacheErr := redis.SetVideoNotFoundCache(ctx, videoID); cacheErr != nil {
+				hlog.CtxWarnf(ctx, "写入 Redis 视频空值缓存失败，video_id=%d，error=%v", videoID, cacheErr)
+			}
 			return nil, apperr.New(apperr.KindNotFound, "视频不存在")
 		}
 		return nil, apperr.Wrap(apperr.KindInternal, "查询视频详情失败，请稍后再试", err)
 	}
 
-	// 4. 将 MySQL 查询结果回填 Redis
 	if err := redis.SetVideoDetailCache(ctx, newVideoDetailCache(video)); err != nil {
 		hlog.CtxWarnf(ctx, "写入 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
 
-	// 5. 返回 MySQL 查询结果
 	return video, nil
 }

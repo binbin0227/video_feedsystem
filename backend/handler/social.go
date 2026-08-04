@@ -19,7 +19,6 @@ type FollowRequest struct {
 
 // FollowUser 让当前登录用户关注目标账号。
 func FollowUser(ctx context.Context, c *app.RequestContext) {
-	// 1. 解析 JSON
 	var req FollowRequest
 	if err := c.BindAndValidate(&req); err != nil {
 		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
@@ -30,21 +29,15 @@ func FollowUser(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 读取 accountID
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. service.FollowUser
 	if err := service.FollowUser(ctx, followerID, vloggerID); err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 4. 返回结果
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "关注成功",
 	})
@@ -52,7 +45,6 @@ func FollowUser(ctx context.Context, c *app.RequestContext) {
 
 // UnfollowUser 取消当前登录用户对目标账号的关注。
 func UnfollowUser(ctx context.Context, c *app.RequestContext) {
-	// 1. 解析 JSON
 	var req FollowRequest
 	if err := c.BindAndValidate(&req); err != nil {
 		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
@@ -63,21 +55,15 @@ func UnfollowUser(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 读取 accountID
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. service.UnfollowUser
 	if err := service.UnfollowUser(ctx, followerID, vloggerID); err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 4. 返回结果
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "取消关注成功",
 	})
@@ -85,28 +71,21 @@ func UnfollowUser(ctx context.Context, c *app.RequestContext) {
 
 // GetFollowStatus 返回当前登录用户对目标账号的关注状态。
 func GetFollowStatus(ctx context.Context, c *app.RequestContext) {
-	// 1. 解析 vlogger_id 查询参数
 	vloggerID, err := parsePositiveInt64Query(c, "vlogger_id")
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 读取 accountID
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. service.CheckFollowStatus
 	following, err := service.CheckFollowStatus(ctx, followerID, vloggerID)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 4. 返回结果
 	c.JSON(consts.StatusOK, map[string]bool{
 		"is_following": following,
 	})
@@ -114,7 +93,6 @@ func GetFollowStatus(ctx context.Context, c *app.RequestContext) {
 
 // GetFollowingList 分页查询当前用户关注的账号。
 func GetFollowingList(ctx context.Context, c *app.RequestContext) {
-	// 1. 解析 cursor 和 limit
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
@@ -125,28 +103,20 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 获取 accountID
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. service.GetFollowingList
 	result, err := service.GetFollowingList(ctx, followerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 4. 将下一页游标转换为字符串
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-
-	// 5. 返回结果
 	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
 		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
 		NextCursor: nextCursor,
@@ -156,7 +126,6 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 
 // GetFollowerList 分页查询当前用户粉丝的账号。
 func GetFollowerList(ctx context.Context, c *app.RequestContext) {
-	// 1. cursor 和 limit
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
@@ -167,28 +136,20 @@ func GetFollowerList(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 2. 获取 accountID
 	vloggerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 3. service.GetFollowerList
 	result, err := service.GetFollowerList(ctx, vloggerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-
-	// 4. 将下一页游标转换为字符串
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-
-	// 5. 返回结果
 	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
 		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
 		HasMore:    result.HasMore,

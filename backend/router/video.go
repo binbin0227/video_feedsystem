@@ -1,6 +1,7 @@
 package router
 
 import (
+	"time"
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
@@ -16,11 +17,11 @@ func registerVideoRoutes(h *server.Hertz) {
 
 		authorized := video.Group("", middleware.JWTAuth())
 		{
-			authorized.POST("/upload-video", handler.UploadVideo)
-			authorized.POST("/upload-cover", handler.UploadCover)
-			authorized.POST("/publish", handler.PublishVideo)
-			authorized.POST("/like", handler.LikeVideo)
-			authorized.POST("/unlike", handler.UnlikeVideo)
+			authorized.POST("/upload-video", middleware.RateLimitByAccount("upload", 10, time.Minute), handler.UploadVideo)
+			authorized.POST("/upload-cover", middleware.RateLimitByAccount("upload", 10, time.Minute), handler.UploadCover)
+			authorized.POST("/publish", middleware.RateLimitByAccount("publish_video", 10, time.Minute), handler.PublishVideo)
+			authorized.POST("/like", middleware.RateLimitByAccount("like_operation", 120, time.Minute), handler.LikeVideo)
+			authorized.POST("/unlike", middleware.RateLimitByAccount("like_operation", 120, time.Minute), handler.UnlikeVideo)
 			authorized.GET("/like-status", handler.GetLikeStatus)
 			authorized.GET("/liked", handler.GetLikedVideoList)
 		}

@@ -29,12 +29,11 @@ type LikedVideoRow struct {
 // CreateLike 在同一事务中创建点赞关系并增加视频点赞数。
 func CreateLike(ctx context.Context, like *model.Like) error {
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. 向 likes 表插入点赞记录，联合唯一索引会阻止重复点赞
+		// 联合唯一索引阻止重复点赞。
 		if err := tx.Create(like).Error; err != nil {
 			return err
 		}
-
-		// 2. 直接在数据库中执行 like_count + 1，避免并发覆盖
+		// 在数据库中原子递增，避免并发读改写覆盖。
 		result := tx.Model(&model.Video{}).Where("id = ?", like.VideoID).
 			UpdateColumn("like_count", gorm.Expr("like_count + 1")) // 只修改指定字段，而且不会因为点赞而更新视频的 updated_at
 		if result.Error != nil {
@@ -52,7 +51,6 @@ func CreateLike(ctx context.Context, like *model.Like) error {
 // DeleteLike 在同一事务中删除点赞关系并减少视频点赞数。
 func DeleteLike(ctx context.Context, accountID, videoID int64) error {
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. 从 likes 表中删除点赞记录
 		result := tx.Where("account_id = ? AND video_id = ?", accountID, videoID).Delete(&model.Like{})
 		if result.Error != nil {
 			return result.Error
@@ -62,8 +60,7 @@ func DeleteLike(ctx context.Context, accountID, videoID int64) error {
 		if result.RowsAffected == 0 {
 			return ErrLikeNotFound
 		}
-
-		// 2. 点赞数减一，并避免异常情况下变成负数
+		// 直接在数据库中递减，同时避免计数因异常数据变成负数。
 		result = tx.Model(&model.Video{}).Where("id = ?", videoID).
 			UpdateColumn("like_count", gorm.Expr("CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END"))
 		if result.Error != nil {
