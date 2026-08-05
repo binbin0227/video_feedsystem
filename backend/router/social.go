@@ -7,7 +7,6 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-// registerSocialRoutes 注册关注状态、关注操作和关注关系列表接口。
 func registerSocialRoutes(h *server.Hertz) {
 	social := h.Group("/social")
 	{

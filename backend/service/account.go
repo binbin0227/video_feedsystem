@@ -16,7 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// AccountSearchItem 表示用户搜索结果中的业务字段。
 type AccountSearchItem struct {
 	AccountID         int64
 	Username          string
@@ -24,7 +23,6 @@ type AccountSearchItem struct {
 	FollowerCount     int64
 }
 
-// AccountProfile 表示用户主页需要展示的基础信息和统计数据。
 type AccountProfile struct {
 	AccountID         int64
 	Username          string
@@ -58,21 +56,28 @@ func Register(ctx context.Context, username, password string) error {
 	if passwordLength > maxPasswordLength {
 		return apperr.New(apperr.KindInvalid, "密码不能超过 72 个字节")
 	}
-	exists, err := db.CheckUsernameExist(ctx, username)
+
+	// 检查用户名是否已被注册
+	exist, err := db.CheckUsernameExist(ctx, username)
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "注册失败，请稍后再试", err)
 	}
-	if exists {
+	if exist {
 		return apperr.New(apperr.KindConflict, "用户名已被注册")
 	}
+
+	// 生成账号 ID
 	accountID, err := utils.GenerateID()
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "生成账号 ID 失败", err)
 	}
+
+	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "密码加密失败", err)
 	}
+	
 	account := &model.Account{
 		ID:       accountID,
 		Username: username,
@@ -94,6 +99,8 @@ func Login(ctx context.Context, username, password string) (string, error) {
 	if username == "" || password == "" {
 		return "", apperr.New(apperr.KindInvalid, "用户名或密码不能为空")
 	}
+
+	// 检查用户是否存在
 	account, err := db.FindAccountByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -101,21 +108,27 @@ func Login(ctx context.Context, username, password string) (string, error) {
 		}
 		return "", apperr.Wrap(apperr.KindInternal, "登录失败，请稍后再试", err)
 	}
+
+	// 校验密码
 	if err := bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(password)); err != nil {
 		return "", apperr.New(apperr.KindUnauthorized, "用户名或密码错误")
 	}
+
+	// 返回 token
 	token, err := utils.GenerateToken(account.ID)
 	if err != nil {
 		return "", apperr.Wrap(apperr.KindInternal, "生成登录凭证失败，请稍后再试", err)
 	}
+
 	return token, nil
 }
 
-// GetAccountProfile 查询指定账号的主页信息。
+// 查询指定账号的主页信息。
 func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, error) {
 	if accountID <= 0 {
 		return nil, apperr.New(apperr.KindInvalid, "用户ID不合法")
 	}
+
 	row, err := db.FindAccountProfile(ctx, accountID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -123,6 +136,7 @@ func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, e
 		}
 		return nil, apperr.Wrap(apperr.KindInternal, "查询用户主页失败，请稍后再试", err)
 	}
+
 	return &AccountProfile{
 		AccountID:         row.AccountID,
 		Username:          row.Username,
@@ -134,16 +148,18 @@ func GetAccountProfile(ctx context.Context, accountID int64) (*AccountProfile, e
 	}, nil
 }
 
-// SearchAccounts 根据用户名关键词搜索账号。
+// 根据用户名关键词搜索账号
 func SearchAccounts(ctx context.Context, keyword string) ([]AccountSearchItem, error) {
 	keyword = strings.TrimSpace(keyword)
 	if keyword == "" {
 		return nil, apperr.New(apperr.KindInvalid, "搜索关键词不能为空")
 	}
+
 	rows, err := db.SearchAccountsByUsername(ctx, keyword, accountSearchLimit)
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "搜索用户失败，请稍后再试", err)
 	}
+	
 	accounts := make([]AccountSearchItem, 0, len(rows))
 	for _, row := range rows {
 		accounts = append(accounts, AccountSearchItem{

@@ -7,7 +7,6 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-// registerFeedRoutes 注册公共视频流和登录后的关注视频流接口。
 func registerFeedRoutes(h *server.Hertz) {
 	feed := h.Group("/feed")
 	{

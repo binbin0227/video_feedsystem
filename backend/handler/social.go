@@ -12,12 +12,11 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
-// FollowRequest 表示关注和取消关注接口的 JSON 请求体。
 type FollowRequest struct {
 	VloggerID string `json:"vlogger_id"`
 }
 
-// FollowUser 让当前登录用户关注目标账号。
+// 让当前登录用户关注目标账号
 func FollowUser(ctx context.Context, c *app.RequestContext) {
 	var req FollowRequest
 	if err := c.BindAndValidate(&req); err != nil {
@@ -29,21 +28,24 @@ func FollowUser(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+	
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	if err := service.FollowUser(ctx, followerID, vloggerID); err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "关注成功",
 	})
 }
 
-// UnfollowUser 取消当前登录用户对目标账号的关注。
+// 取消当前登录用户对目标账号的关注
 func UnfollowUser(ctx context.Context, c *app.RequestContext) {
 	var req FollowRequest
 	if err := c.BindAndValidate(&req); err != nil {
@@ -55,21 +57,24 @@ func UnfollowUser(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	if err := service.UnfollowUser(ctx, followerID, vloggerID); err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "取消关注成功",
 	})
 }
 
-// GetFollowStatus 返回当前登录用户对目标账号的关注状态。
+// 返回当前登录用户对目标账号的关注状态
 func GetFollowStatus(ctx context.Context, c *app.RequestContext) {
 	vloggerID, err := parsePositiveInt64Query(c, "vlogger_id")
 	if err != nil {
@@ -81,17 +86,19 @@ func GetFollowStatus(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	following, err := service.CheckFollowStatus(ctx, followerID, vloggerID)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	c.JSON(consts.StatusOK, map[string]bool{
 		"is_following": following,
 	})
 }
 
-// GetFollowingList 分页查询当前用户关注的账号。
+// 分页查询当前用户关注的账号
 func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
@@ -108,6 +115,7 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	result, err := service.GetFollowingList(ctx, followerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
@@ -117,6 +125,7 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
+
 	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
 		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
 		NextCursor: nextCursor,
@@ -124,7 +133,7 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 	})
 }
 
-// GetFollowerList 分页查询当前用户粉丝的账号。
+// 分页查询当前用户粉丝的账号
 func GetFollowerList(ctx context.Context, c *app.RequestContext) {
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
@@ -141,6 +150,7 @@ func GetFollowerList(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	result, err := service.GetFollowerList(ctx, vloggerID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
@@ -150,6 +160,7 @@ func GetFollowerList(ctx context.Context, c *app.RequestContext) {
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
+
 	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
 		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
 		HasMore:    result.HasMore,

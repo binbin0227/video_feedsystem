@@ -11,7 +11,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
-// JWTAuth 校验 Bearer Token，并把账号 ID 写入请求上下文供后续 Handler 使用。
+// 校验 Bearer Token 并把 accountID 写入请求上下文
 func JWTAuth() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		authHeader := string(c.GetHeader("Authorization"))
@@ -27,12 +27,15 @@ func JWTAuth() app.HandlerFunc {
 			c.Abort()
 			return
 		}
+
 		claims, err := utils.ParseToken(parts[1])
 		if err != nil {
 			httpx.WriteError(ctx, c, apperr.New(apperr.KindUnauthorized, "Token 已过期或无效"))
 			c.Abort()
 			return
 		}
+
+		// 将 accountID 放入请求上下文
 		c.Set("accountID", claims.AccountID)
 		c.Next(ctx)
 	}

@@ -10,13 +10,12 @@ import (
 
 var jwtSecret []byte
 
-// Claims 保存 JWT 中的账号 ID 和标准有效期字段。
+// 保存 JWT 中的账号 ID 和标准有效期字段（过期、签发、生效时间等）
 type Claims struct {
 	AccountID int64 `json:"account_id"`
 	jwt.RegisteredClaims
 }
 
-// InitJWT 在服务启动时保存签名密钥。
 func InitJWT(secret string) error {
 	if strings.TrimSpace(secret) == "" {
 		return errors.New("JWT 密钥不能为空")
@@ -25,7 +24,7 @@ func InitJWT(secret string) error {
 	return nil
 }
 
-// GenerateToken 为指定账号生成两小时有效的 HS256 Token。
+// 为指定账号生成 Token
 func GenerateToken(accountID int64) (string, error) {
 	if len(jwtSecret) == 0 {
 		return "", errors.New("JWT 尚未初始化")
@@ -45,7 +44,7 @@ func GenerateToken(accountID int64) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-// ParseToken 验证 Token 并取出其中的用户信息。
+// 验证 Token 并解析用户信息
 func ParseToken(tokenStr string) (*Claims, error) {
 	if len(jwtSecret) == 0 {
 		return nil, errors.New("JWT 尚未初始化")

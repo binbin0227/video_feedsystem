@@ -11,7 +11,7 @@ import (
 
 var DB *gorm.DB
 
-// InitDatabase 连接数据库并自动创建或更新数据表。
+// 连接数据库并自动创建或更新数据表
 func InitDatabase(dsn string) error {
 	var err error
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{TranslateError: true})

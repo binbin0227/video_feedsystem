@@ -15,10 +15,25 @@ type HotVideoScore struct {
 	Score   float64
 }
 
-// ChangeVideoHotScore 按增量更新指定视频的热度值。
-func ChangeVideoHotScore(ctx context.Context, videoID int64, delta float64) error {
+// SetVideoHotScore 覆盖指定视频的最终热度分数，分数不大于零时移出排行榜。
+func SetVideoHotScore(ctx context.Context, videoID int64, score float64) error {
 	member := strconv.FormatInt(videoID, 10)
-	return rdb.ZIncrBy(ctx, hotVideoKey, delta, member).Err()
+
+	if score <= 0 {
+		if err := rdb.ZRem(ctx, hotVideoKey, member).Err(); err != nil {
+			return fmt.Errorf("从 Redis 热门榜移除视频失败: %w", err)
+		}
+		return nil
+	}
+
+	if err := rdb.ZAdd(ctx, hotVideoKey, goredis.Z{
+		Score:  score,
+		Member: member,
+	}).Err(); err != nil {
+		return fmt.Errorf("覆盖 Redis 视频热度失败: %w", err)
+	}
+
+	return nil
 }
 
 // ListHotVideoIDs 按热度从高到低返回得分大于零的视频 ID。

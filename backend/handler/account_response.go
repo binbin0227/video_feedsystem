@@ -7,7 +7,6 @@ import (
 	"video_feedsystem/service"
 )
 
-// AccountProfileResponse 表示用户主页接口的响应字段。
 type AccountProfileResponse struct {
 	AccountID         string    `json:"account_id"`
 	Username          string    `json:"username"`
@@ -18,7 +17,6 @@ type AccountProfileResponse struct {
 	FollowerCount     int64     `json:"follower_count"`
 }
 
-// AccountSearchItemResponse 表示单个用户搜索结果。
 type AccountSearchItemResponse struct {
 	AccountID         string `json:"account_id"`
 	Username          string `json:"username"`
@@ -26,12 +24,10 @@ type AccountSearchItemResponse struct {
 	FollowerCount     int64  `json:"follower_count"`
 }
 
-// AccountSearchResponse 表示用户搜索接口的响应结构。
 type AccountSearchResponse struct {
 	Accounts []AccountSearchItemResponse `json:"accounts"`
 }
 
-// newAccountProfileResponse 将 Service 结果转换为对外响应，并把 int64 ID 转为字符串。
 func newAccountProfileResponse(profile *service.AccountProfile) AccountProfileResponse {
 	return AccountProfileResponse{
 		AccountID:         strconv.FormatInt(profile.AccountID, 10),
@@ -44,7 +40,6 @@ func newAccountProfileResponse(profile *service.AccountProfile) AccountProfileRe
 	}
 }
 
-// newAccountSearchListResponse 将用户搜索业务结果转换为对外响应。
 func newAccountSearchListResponse(accounts []service.AccountSearchItem) []AccountSearchItemResponse {
 	result := make([]AccountSearchItemResponse, 0, len(accounts))
 

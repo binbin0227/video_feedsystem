@@ -9,10 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrLikeNotFound 表示取消点赞时没有找到对应关系。
 var ErrLikeNotFound = errors.New("like record not found")
 
-// LikedVideoRow 承接点赞关系、视频和作者三表 JOIN 的查询结果。
 type LikedVideoRow struct {
 	RelationID     int64     `gorm:"column:relation_id"`
 	VideoID        int64     `gorm:"column:video_id"`
@@ -26,16 +24,16 @@ type LikedVideoRow struct {
 	LikeCount      int       `gorm:"column:like_count"`
 }
 
-// CreateLike 在同一事务中创建点赞关系并增加视频点赞数。
+// 在同一事务中创建点赞关系并增加视频点赞数
 func CreateLike(ctx context.Context, like *model.Like) error {
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 联合唯一索引阻止重复点赞。
+		// 联合唯一索引阻止重复点赞
 		if err := tx.Create(like).Error; err != nil {
 			return err
 		}
-		// 在数据库中原子递增，避免并发读改写覆盖。
+		// 在数据库中原子递增
 		result := tx.Model(&model.Video{}).Where("id = ?", like.VideoID).
-			UpdateColumn("like_count", gorm.Expr("like_count + 1")) // 只修改指定字段，而且不会因为点赞而更新视频的 updated_at
+			UpdateColumn("like_count", gorm.Expr("like_count + 1"))
 		if result.Error != nil {
 			return result.Error
 		}
@@ -48,7 +46,7 @@ func CreateLike(ctx context.Context, like *model.Like) error {
 	})
 }
 
-// DeleteLike 在同一事务中删除点赞关系并减少视频点赞数。
+// 在同一事务中删除点赞关系并减少视频点赞数
 func DeleteLike(ctx context.Context, accountID, videoID int64) error {
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("account_id = ? AND video_id = ?", accountID, videoID).Delete(&model.Like{})
@@ -60,7 +58,7 @@ func DeleteLike(ctx context.Context, accountID, videoID int64) error {
 		if result.RowsAffected == 0 {
 			return ErrLikeNotFound
 		}
-		// 直接在数据库中递减，同时避免计数因异常数据变成负数。
+		// 在数据库中原子递减，同时避免计数因异常数据变成负数
 		result = tx.Model(&model.Video{}).Where("id = ?", videoID).
 			UpdateColumn("like_count", gorm.Expr("CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END"))
 		if result.Error != nil {
@@ -75,7 +73,7 @@ func DeleteLike(ctx context.Context, accountID, videoID int64) error {
 	})
 }
 
-// CheckLikeExist 判断指定账号是否已经点赞该视频。
+// 判断指定账号是否已经点赞该视频
 func CheckLikeExist(ctx context.Context, accountID, videoID int64) (bool, error) {
 	var count int64
 	err := DB.WithContext(ctx).Model(&model.Like{}).
@@ -84,7 +82,7 @@ func CheckLikeExist(ctx context.Context, accountID, videoID int64) (bool, error)
 	return count > 0, err
 }
 
-// ListLikedVideos 按点赞关系 ID 倒序查询当前用户点赞过的视频。
+// 按点赞关系 ID 倒序查询当前用户点赞过的视频
 func ListLikedVideos(ctx context.Context, accountID, cursor int64, limit int) ([]LikedVideoRow, error) {
 	var rows []LikedVideoRow
 

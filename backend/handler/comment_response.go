@@ -7,7 +7,6 @@ import (
 	"video_feedsystem/model"
 )
 
-// CommentResponse 表示返回给前端的评论结构，ID 使用字符串避免精度丢失。
 type CommentResponse struct {
 	ID        string    `json:"id"`
 	VideoID   string    `json:"video_id"`
@@ -17,7 +16,6 @@ type CommentResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// newCommentResponse 将评论模型转换为对外响应。
 func newCommentResponse(comment *model.Comment) CommentResponse {
 	return CommentResponse{
 		ID:        strconv.FormatInt(comment.ID, 10),
@@ -29,7 +27,6 @@ func newCommentResponse(comment *model.Comment) CommentResponse {
 	}
 }
 
-// newCommentListResponse 将评论模型列表转换为对外响应列表。
 func newCommentListResponse(comments []model.Comment) []CommentResponse {
 	result := make([]CommentResponse, 0, len(comments))
 

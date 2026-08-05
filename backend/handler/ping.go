@@ -7,7 +7,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
-// Ping 用于确认服务是否正常启动。
+// 确认服务是否正常启动
 func Ping(ctx context.Context, c *app.RequestContext) {
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "pong",

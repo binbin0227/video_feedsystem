@@ -6,13 +6,12 @@ import (
 	"video_feedsystem/model"
 )
 
-// FeedVideoRow 在视频字段之外携带 JOIN 查询得到的作者用户名。
 type FeedVideoRow struct {
 	model.Video
 	AuthorUsername string `gorm:"column:author_username"`
 }
 
-// ListFeed 按视频 ID 倒序查询公共视频流。
+// 按 accountID 倒序查询公共视频流
 func ListFeed(ctx context.Context, cursor int64, limit int) ([]FeedVideoRow, error) {
 	var rows []FeedVideoRow
 
@@ -31,7 +30,7 @@ func ListFeed(ctx context.Context, cursor int64, limit int) ([]FeedVideoRow, err
 	return rows, err
 }
 
-// ListFollowingFeed 查询当前用户已关注作者发布的视频。
+// 查询当前用户已关注作者发布的视频
 func ListFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) ([]FeedVideoRow, error) {
 	var rows []FeedVideoRow
 
@@ -58,7 +57,7 @@ func ListFollowingFeed(ctx context.Context, followerID, cursor int64, limit int)
 	return rows, err
 }
 
-// ListVideosByIDs 根据一组视频 ID 批量查询视频及作者信息。
+// 根据一组 accountID 批量查询视频及作者信息
 func ListVideosByIDs(ctx context.Context, videoIDs []int64) ([]FeedVideoRow, error) {
 	if len(videoIDs) == 0 {
 		return []FeedVideoRow{}, nil

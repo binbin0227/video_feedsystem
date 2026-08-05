@@ -14,20 +14,19 @@ const (
 	hotFeedLimit     = 10
 )
 
-// FeedVideo 在视频模型之外携带作者用户名。
+// 在视频结构体外带上作者用户名
 type FeedVideo struct {
 	Video          model.Video
 	AuthorUsername string
 }
 
-// FeedResult 表示视频流的游标分页结果。
 type FeedResult struct {
 	Videos     []FeedVideo
 	NextCursor int64
 	HasMore    bool
 }
 
-// newFeedVideos 将 DAL 查询行转换为 Feed 业务对象。
+// 将数据库查询行转换为 Feed 业务对象
 func newFeedVideos(rows []db.FeedVideoRow) []FeedVideo {
 	videos := make([]FeedVideo, 0, len(rows))
 
@@ -41,7 +40,7 @@ func newFeedVideos(rows []db.FeedVideoRow) []FeedVideo {
 	return videos
 }
 
-// GetFeed 分页查询公共视频流。
+// 分页查询公共视频流
 func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
 	if cursor < 0 {
 		return FeedResult{}, apperr.New(apperr.KindInvalid, "cursor 不合法")
@@ -53,7 +52,8 @@ func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
 	} else if limit > maxFeedLimit {
 		limit = maxFeedLimit
 	}
-	// 多查询一条来判断是否还有下一页。
+
+	// 多查询一条来判断是否还有下一页
 	rows, err := db.ListFeed(ctx, cursor, limit+1)
 	if err != nil {
 		return FeedResult{}, apperr.Wrap(apperr.KindInternal, "查询视频流失败，请稍后再试", err)
@@ -62,6 +62,7 @@ func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
 	if hasMore {
 		rows = rows[:limit]
 	}
+
 	var nextCursor int64
 	if hasMore && len(rows) > 0 {
 		nextCursor = rows[len(rows)-1].ID
@@ -73,7 +74,7 @@ func GetFeed(ctx context.Context, cursor int64, limit int) (FeedResult, error) {
 	}, nil
 }
 
-// GetFollowingFeed 分页查询当前用户关注的人发布的视频。
+// 分页查询当前用户关注的人发布的视频
 func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) (FeedResult, error) {
 	if followerID <= 0 {
 		return FeedResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")
@@ -89,7 +90,8 @@ func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) 
 	} else if limit > maxFeedLimit {
 		limit = maxFeedLimit
 	}
-	// 多查询一条来判断是否还有下一页。
+
+	// 多查询一条来判断是否还有下一页
 	rows, err := db.ListFollowingFeed(ctx, followerID, cursor, limit+1)
 	if err != nil {
 		return FeedResult{}, apperr.Wrap(apperr.KindInternal, "查询关注流失败，请稍后再试", err)
@@ -111,7 +113,7 @@ func GetFollowingFeed(ctx context.Context, followerID, cursor int64, limit int) 
 	}, nil
 }
 
-// GetHotFeed 查询热门视频
+// 查询热门视频
 func GetHotFeed(ctx context.Context) ([]FeedVideo, error) {
 	videoIDs, err := redis.ListHotVideoIDs(ctx, int64(hotFeedLimit))
 	if err != nil {
@@ -125,7 +127,8 @@ func GetHotFeed(ctx context.Context) ([]FeedVideo, error) {
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "查询热门视频失败，请稍后再试", err)
 	}
-	// MySQL 的 IN 查询不保证顺序，因此按 Redis 排行榜顺序重新排列。
+
+	// 按排行榜顺序重新排序
 	rowMap := make(map[int64]db.FeedVideoRow, len(rows))
 	for _, row := range rows {
 		rowMap[row.ID] = row

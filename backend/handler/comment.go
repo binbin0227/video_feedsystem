@@ -11,48 +11,50 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
-// PublishCommentRequest 表示评论发布接口的 JSON 请求体。
 type PublishCommentRequest struct {
 	VideoID string `json:"video_id"`
 	Content string `json:"content"`
 }
 
-// CommentListResponse 表示评论列表的游标分页响应。
 type CommentListResponse struct {
 	Comments   []CommentResponse `json:"comments"`
 	NextCursor string            `json:"next_cursor"`
 	HasMore    bool              `json:"has_more"`
 }
 
-// PublishComment 为当前登录用户发布评论。
+// 发布评论
 func PublishComment(ctx context.Context, c *app.RequestContext) {
 	var req PublishCommentRequest
 	if err := c.BindAndValidate(&req); err != nil {
 		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
 		return
 	}
+
 	videoID, err := parsePositiveInt64String(req.VideoID, "video_id")
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	accountID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	comment, err := service.CreateComment(ctx, accountID, videoID, req.Content)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	c.JSON(consts.StatusOK, map[string]any{
 		"message": "评论发布成功",
 		"comment": newCommentResponse(comment),
 	})
 }
 
-// ListComments 分页查询指定视频的评论，按最新评论优先返回。
+// 分页查询指定视频的评论
 func ListComments(ctx context.Context, c *app.RequestContext) {
 	videoID, err := parsePositiveInt64Query(c, "video_id")
 	if err != nil {
@@ -69,15 +71,18 @@ func ListComments(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	result, err := service.GetCommentList(ctx, videoID, cursor, limit)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
+
 	c.JSON(consts.StatusOK, CommentListResponse{
 		Comments:   newCommentListResponse(result.Comments),
 		NextCursor: nextCursor,
@@ -85,7 +90,7 @@ func ListComments(ctx context.Context, c *app.RequestContext) {
 	})
 }
 
-// DeleteComment 删除当前登录用户自己的评论。
+// 删除当前登录用户自己的评论
 func DeleteComment(ctx context.Context, c *app.RequestContext) {
 	commentID, err := parsePositiveInt64Query(c, "comment_id")
 	if err != nil {
@@ -97,10 +102,12 @@ func DeleteComment(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+
 	if err := service.DeleteComment(ctx, accountID, commentID); err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
+	
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "评论删除成功",
 	})

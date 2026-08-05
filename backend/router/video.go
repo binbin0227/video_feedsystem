@@ -8,7 +8,6 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-// registerVideoRoutes 注册公开视频查询以及需要 JWT 的上传、发布和点赞接口。
 func registerVideoRoutes(h *server.Hertz) {
 	video := h.Group("/video")
 	{

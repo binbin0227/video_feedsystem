@@ -18,14 +18,13 @@ const (
 	maxLikedVideoLimit     = 100
 )
 
-// LikedVideoListResult 表示点赞视频列表的游标分页结果。
 type LikedVideoListResult struct {
 	Videos     []model.Video
 	NextCursor int64
 	HasMore    bool
 }
 
-// LikeVideo 为当前用户创建点赞关系并更新视频点赞数。
+// 创建点赞关系并更新视频点赞数
 func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
@@ -52,18 +51,17 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 		}
 		return apperr.Wrap(apperr.KindInternal, "点赞失败，请稍后再试", err)
 	}
-	// 点赞数变化后删除旧详情缓存；Redis 失败不回滚 MySQL 事务。
+	// 点赞数变化后删除旧详情缓存
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
 		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
-	if err := redis.ChangeVideoHotScore(ctx, videoID, likeHotScore); err != nil {
-		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
-	}
+	// 热度排行榜通过 RabbitMQ 异步刷新
+	notifyHotVideoRefresh(ctx, videoID)
 
 	return nil
 }
 
-// UnlikeVideo 删除当前用户的点赞关系并更新视频点赞数。
+// 删除当前用户的点赞关系并更新视频点赞数
 func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if accountID <= 0 {
 		return apperr.New(apperr.KindUnauthorized, "用户身份无效")
@@ -81,18 +79,17 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 		}
 		return apperr.Wrap(apperr.KindInternal, "取消点赞失败，请稍后再试", err)
 	}
-	// 点赞数变化后删除旧详情缓存；Redis 失败不回滚 MySQL 事务。
+	// 点赞数变化后删除旧详情缓存
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
 		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
-	if err := redis.ChangeVideoHotScore(ctx, videoID, -likeHotScore); err != nil {
-		hlog.CtxWarnf(ctx, "更新 Redis 视频热度失败，video_id=%d，error=%v", videoID, err)
-	}
+	// 热度排行榜通过 RabbitMQ 异步刷新
+	notifyHotVideoRefresh(ctx, videoID)
 
 	return nil
 }
 
-// CheckLikeStatus 查询当前用户是否已经点赞指定视频。
+// 查询当前用户是否已经点赞指定视频
 func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error) {
 	if accountID <= 0 {
 		return false, apperr.New(apperr.KindUnauthorized, "用户身份无效")
@@ -108,7 +105,7 @@ func CheckLikeStatus(ctx context.Context, accountID, videoID int64) (bool, error
 	return liked, nil
 }
 
-// GetLikedVideoList 分页查询当前用户点赞过的视频。
+// 分页查询当前用户点赞过的视频
 func GetLikedVideoList(ctx context.Context, accountID, cursor int64, limit int) (LikedVideoListResult, error) {
 	if accountID <= 0 {
 		return LikedVideoListResult{}, apperr.New(apperr.KindUnauthorized, "用户身份无效")

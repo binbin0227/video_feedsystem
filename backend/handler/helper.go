@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
-// getAccountID 从 JWT 中间件写入的上下文中取出用户 ID。
+// 从 JWT 中间件写入的上下文中取出 accountID
 func getAccountID(c *app.RequestContext) (int64, error) {
 	value, exists := c.Get("accountID")
 	if !exists {
@@ -24,7 +24,7 @@ func getAccountID(c *app.RequestContext) (int64, error) {
 	return accountID, nil
 }
 
-// parsePositiveInt64Query 读取并校验必须大于 0 的 int64 查询参数。
+// 读取并校验大于 0 的 int64 查询参数
 func parsePositiveInt64Query(c *app.RequestContext, name string) (int64, error) {
 	value := strings.TrimSpace(c.Query(name))
 	if value == "" {
@@ -34,7 +34,7 @@ func parsePositiveInt64Query(c *app.RequestContext, name string) (int64, error) 
 	return parsePositiveInt64String(value, name)
 }
 
-// parsePositiveInt64String 将字符串 ID 转成大于 0 的 int64。
+// 将字符串 ID 转成大于 0 的 int64。
 func parsePositiveInt64String(value, name string) (int64, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -49,7 +49,7 @@ func parsePositiveInt64String(value, name string) (int64, error) {
 	return id, nil
 }
 
-// parseOptionalCursor 解析可选游标，没传时返回 0。
+// 解析游标，没传时返回 0
 func parseOptionalCursor(c *app.RequestContext) (int64, error) {
 	value := strings.TrimSpace(c.Query("cursor"))
 	if value == "" {
@@ -64,7 +64,7 @@ func parseOptionalCursor(c *app.RequestContext) (int64, error) {
 	return cursor, nil
 }
 
-// parseOptionalLimit 解析可选数量，没传时返回 0。
+// 解析数量，没传时返回 0
 func parseOptionalLimit(c *app.RequestContext) (int, error) {
 	value := strings.TrimSpace(c.Query("limit"))
 	if value == "" {

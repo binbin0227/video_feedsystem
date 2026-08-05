@@ -12,7 +12,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
-// saveUploadedFile 保存文件，并返回可存入数据库的相对访问路径。
+// 保存文件并返回相对访问路径
 func saveUploadedFile(c *app.RequestContext, file *multipart.FileHeader, authorID int64, category, ext string) (string, error) {
 	dateDir := time.Now().Format("20060102")
 	saveDir := filepath.Join(".run", "uploads", category, fmt.Sprintf("%d", authorID), dateDir)
