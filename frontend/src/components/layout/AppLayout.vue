@@ -1,12 +1,17 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { getAccountId, isLoggedIn, removeToken } from '../../utils/auth'
 
+const GUEST_PROMPT_DISMISSED_KEY = 'guest-login-prompt-dismissed'
 const route = useRoute()
 const router = useRouter()
 const loggedIn = ref(isLoggedIn())
 const accountId = ref(getAccountId())
+const guestPromptDismissed = ref(sessionStorage.getItem(GUEST_PROMPT_DISMISSED_KEY) === '1')
+const guestPromptReady = ref(false)
+const showGuestLoginPrompt = computed(() => route.name === 'home' && !loggedIn.value && !guestPromptDismissed.value && guestPromptReady.value)
+let guestPromptTimer
 
 function syncLoginState() {
   loggedIn.value = isLoggedIn()
@@ -17,7 +22,25 @@ function handleLogout() {
   removeToken()
   loggedIn.value = false
   accountId.value = ''
+  sessionStorage.removeItem(GUEST_PROMPT_DISMISSED_KEY)
+  guestPromptDismissed.value = false
   router.push('/')
+}
+
+function dismissGuestLoginPrompt() {
+  sessionStorage.setItem(GUEST_PROMPT_DISMISSED_KEY, '1')
+  guestPromptDismissed.value = true
+}
+
+function scheduleGuestLoginPrompt() {
+  window.clearTimeout(guestPromptTimer)
+  guestPromptReady.value = false
+
+  if (route.name === 'home' && !loggedIn.value && !guestPromptDismissed.value) {
+    guestPromptTimer = window.setTimeout(() => {
+      guestPromptReady.value = true
+    }, 1000)
+  }
 }
 
 function isImmersiveRoute() {
@@ -32,11 +55,13 @@ function syncRouteLayout() {
 
 watch(() => route.fullPath, syncLoginState)
 watch(() => route.name, syncRouteLayout, { immediate: true })
+watch([() => route.name, loggedIn, guestPromptDismissed], scheduleGuestLoginPrompt, { immediate: true })
 onMounted(() => {
   window.addEventListener('storage', syncLoginState)
   window.addEventListener('auth-changed', syncLoginState)
 })
 onBeforeUnmount(() => {
+  window.clearTimeout(guestPromptTimer)
   window.removeEventListener('storage', syncLoginState)
   window.removeEventListener('auth-changed', syncLoginState)
   document.documentElement.classList.remove('immersive-route')
@@ -80,5 +105,14 @@ onBeforeUnmount(() => {
     <main class="page-shell" :class="{ 'page-shell--immersive': isImmersiveRoute() }">
       <RouterView />
     </main>
+
+    <aside v-if="showGuestLoginPrompt" class="guest-login-notice" aria-label="登录提示">
+      <button class="guest-login-notice__close" type="button" aria-label="关闭登录提示" @click="dismissGuestLoginPrompt">×</button>
+      <div>
+        <strong>登录后可以参与互动</strong>
+        <p>不登录也能继续刷视频；登录后可点赞、评论和关注作者。</p>
+      </div>
+      <RouterLink :to="{ name: 'login', query: { redirect: '/' } }">去登录</RouterLink>
+    </aside>
   </div>
 </template>

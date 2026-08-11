@@ -9,7 +9,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// PublishVideoHotRefresh 发布视频热门分数刷新事件。
+// 发布视频热门分数刷新事件
 func PublishVideoHotRefresh(ctx context.Context, videoID int64) error {
 	event := VideoHotRefreshEvent{
 		VideoID: videoID,

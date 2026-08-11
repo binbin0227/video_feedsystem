@@ -21,7 +21,7 @@ var rateLimitScript = goredis.NewScript(`
 	return 1
 `)
 
-// AllowRequest 在固定时间窗口内增加请求次数，并判断是否允许本次请求。
+// 在固定时间窗口内增加请求次数，并判断是否允许本次请求
 func AllowRequest(ctx context.Context, key string, limit int64, window time.Duration) (bool, error) {
 	if key == "" {
 		return false, fmt.Errorf("限流 Key 不能为空")

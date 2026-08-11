@@ -20,7 +20,7 @@ var (
 	publishMu  sync.Mutex
 )
 
-// declareTopology 声明视频事件交换机、热门刷新队列以及它们的绑定关系。
+// 声明视频事件交换机、热门刷新队列、绑定关系。
 func declareTopology(ch *amqp.Channel) error {
 	if err := ch.ExchangeDeclare(
 		VideoEventExchange,
@@ -57,7 +57,6 @@ func declareTopology(ch *amqp.Channel) error {
 	return nil
 }
 
-// InitRabbitMQ 连接 RabbitMQ，并声明项目需要的交换机、队列和绑定关系。
 func InitRabbitMQ(url string) error {
 	newConn, err := amqp.Dial(url)
 	if err != nil {
@@ -87,7 +86,6 @@ func InitRabbitMQ(url string) error {
 	return nil
 }
 
-// Close 关闭 RabbitMQ Channel 和底层连接。
 func Close() {
 	if consumerCh != nil {
 		_ = consumerCh.Close()

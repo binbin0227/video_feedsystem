@@ -12,7 +12,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
 
-// RateLimitByAccount 根据当前登录用户限制指定操作的请求频率。
+// 限制当前登录用户指定操作的请求频率
 func RateLimitByAccount(action string, limit int64, window time.Duration) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		value, exist := c.Get("accountID")

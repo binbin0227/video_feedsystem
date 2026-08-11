@@ -9,13 +9,12 @@ import (
 
 const hotVideoKey = "video:hot"
 
-// HotVideoScore 表示一个视频及其重建排行榜时使用的热度值。
 type HotVideoScore struct {
 	VideoID int64
 	Score   float64
 }
 
-// SetVideoHotScore 覆盖指定视频的最终热度分数，分数不大于零时移出排行榜。
+// 覆盖指定视频的最终热度分数，分数 < 0 时移出排行榜
 func SetVideoHotScore(ctx context.Context, videoID int64, score float64) error {
 	member := strconv.FormatInt(videoID, 10)
 
@@ -36,7 +35,7 @@ func SetVideoHotScore(ctx context.Context, videoID int64, score float64) error {
 	return nil
 }
 
-// ListHotVideoIDs 按热度从高到低返回得分大于零的视频 ID。
+// 按热度从高到低返回分数 > 0 的 videoID。
 func ListHotVideoIDs(ctx context.Context, limit int64) ([]int64, error) {
 	members, err := rdb.ZRevRangeByScore(ctx, hotVideoKey, &goredis.ZRangeBy{
 		Max:    "+inf",
@@ -62,7 +61,7 @@ func ListHotVideoIDs(ctx context.Context, limit int64) ([]int64, error) {
 	return videoIDs, nil
 }
 
-// ReplaceHotVideoScores 使用给定数据整体替换热门视频榜。
+// 替换热门视频榜
 func ReplaceHotVideoScores(ctx context.Context, scores []HotVideoScore) error {
 	members := make([]goredis.Z, 0, len(scores))
 	for _, item := range scores {
@@ -73,14 +72,12 @@ func ReplaceHotVideoScores(ctx context.Context, scores []HotVideoScore) error {
 	}
 
 	pipe := rdb.TxPipeline()
-	// 先删除旧排行榜，避免旧数据残留。
+	// 先删除旧排行榜
 	pipe.Del(ctx, hotVideoKey)
-	// 没有视频时，只删除旧排行榜，不执行空的 ZAdd。
 	if len(members) > 0 {
 		pipe.ZAdd(ctx, hotVideoKey, members...)
 	}
 
-	// 删除旧榜和写入新榜会作为一组命令执行，避免其他请求刚好在两条命令中间看到一个长期为空的排行榜
 	if _, err := pipe.Exec(ctx); err != nil {
 		return fmt.Errorf("重建 Redis 热门榜失败: %w", err)
 	}

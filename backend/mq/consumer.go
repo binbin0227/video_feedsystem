@@ -10,10 +10,9 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// VideoHotRefreshHandler 表示处理视频热度刷新事件的业务函数。
 type VideoHotRefreshHandler func(ctx context.Context, videoID int64) error
 
-// StartVideoHotRefreshConsumer 启动视频热度刷新消费者。
+// 启动视频热度刷新消费者
 func StartVideoHotRefreshConsumer(handler VideoHotRefreshHandler) error {
 	if handler == nil {
 		return fmt.Errorf("视频热度刷新处理函数不能为空")
@@ -30,13 +29,13 @@ func StartVideoHotRefreshConsumer(handler VideoHotRefreshHandler) error {
 		return fmt.Errorf("创建 RabbitMQ 消费 Channel 失败: %w", err)
 	}
 
-	// 消费者也声明自己依赖的交换机、队列和绑定。
+	// 消费者也声明自己依赖的交换机、队列和绑定
 	if err := declareTopology(newConsumerCh); err != nil {
 		_ = newConsumerCh.Close()
 		return err
 	}
 
-	// 最多允许当前消费者持有 10 条尚未确认的消息。
+	// 最多允许当前消费者持有 10 条尚未确认的消息
 	if err := newConsumerCh.Qos(10, 0, false); err != nil {
 		_ = newConsumerCh.Close()
 		return fmt.Errorf("设置 RabbitMQ 消费者预取数量失败: %w", err)
@@ -62,7 +61,7 @@ func StartVideoHotRefreshConsumer(handler VideoHotRefreshHandler) error {
 	return nil
 }
 
-// consumeVideoHotRefreshDeliveries 持续读取 RabbitMQ 推送的消息。
+// 持续读取 RabbitMQ 推送的消息
 func consumeVideoHotRefreshDeliveries(deliveries <-chan amqp.Delivery, handler VideoHotRefreshHandler) {
 	for delivery := range deliveries {
 		handleVideoHotRefreshDelivery(delivery, handler)
@@ -71,21 +70,12 @@ func consumeVideoHotRefreshDeliveries(deliveries <-chan amqp.Delivery, handler V
 	log.Println("RabbitMQ 视频热度刷新消费者已停止")
 }
 
-// handleVideoHotRefreshDelivery 处理单条视频热度刷新消息。
+// 处理单条视频热度刷新消息
 func handleVideoHotRefreshDelivery(delivery amqp.Delivery, handler VideoHotRefreshHandler) {
 	var event VideoHotRefreshEvent
 
 	if err := json.Unmarshal(delivery.Body, &event); err != nil {
 		log.Printf("解析视频热度刷新消息失败，body=%s，error=%v", string(delivery.Body), err)
-
-		if nackErr := delivery.Nack(false, false); nackErr != nil {
-			log.Printf("拒绝非法 RabbitMQ 消息失败: %v", nackErr)
-		}
-		return
-	}
-
-	if event.VideoID <= 0 {
-		log.Printf("视频热度刷新消息中的 video_id 不合法：%d", event.VideoID)
 
 		if nackErr := delivery.Nack(false, false); nackErr != nil {
 			log.Printf("拒绝非法 RabbitMQ 消息失败: %v", nackErr)

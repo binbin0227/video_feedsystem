@@ -16,7 +16,7 @@ const (
 	commentHotScore = 2
 )
 
-// RebuildHotVideos 根据 MySQL 中的点赞和评论数据重建 Redis 热门榜。
+// 根据 MySQL 中的点赞和评论数据重建 Redis 热门榜
 func RebuildHotVideos(ctx context.Context) error {
 	rows, err := db.ListHotVideoStats(ctx)
 	if err != nil {
@@ -44,7 +44,7 @@ func RebuildHotVideos(ctx context.Context) error {
 	return nil
 }
 
-// RefreshHotVideo 根据 MySQL 当前数据重新计算并覆盖单个视频的热度。
+// 根据 MySQL 当前数据重新计算并覆盖单个视频的热度
 func RefreshHotVideo(ctx context.Context, videoID int64) error {
 	if videoID <= 0 {
 		return fmt.Errorf("视频 ID 不合法")
@@ -64,7 +64,7 @@ func RefreshHotVideo(ctx context.Context, videoID int64) error {
 	return nil
 }
 
-// notifyHotVideoRefresh 发布视频热度刷新消息，RabbitMQ 不可用时同步刷新作为降级。
+// 发布视频热度刷新消息（ RabbitMQ 不可用时同步刷新作为降级）
 func notifyHotVideoRefresh(ctx context.Context, videoID int64) {
 	if err := mq.PublishVideoHotRefresh(ctx, videoID); err == nil {
 		return

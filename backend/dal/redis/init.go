@@ -9,7 +9,6 @@ import (
 
 var rdb *goredis.Client
 
-// InitRedis 创建 Redis 客户端并检查连接是否可用。
 func InitRedis(addr string, pwd string) error {
 	rdb = goredis.NewClient(&goredis.Options{
 		Addr:     addr,
