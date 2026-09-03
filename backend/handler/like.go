@@ -127,7 +127,7 @@ func GetLikedVideoList(ctx context.Context, c *app.RequestContext) {
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-	
+
 	c.JSON(consts.StatusOK, LikedVideoListResponse{
 		Videos:     newVideoListResponse(result.Videos),
 		NextCursor: nextCursor,

@@ -77,7 +77,7 @@ func Register(ctx context.Context, username, password string) error {
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "密码加密失败", err)
 	}
-	
+
 	account := &model.Account{
 		ID:       accountID,
 		Username: username,
@@ -159,7 +159,7 @@ func SearchAccounts(ctx context.Context, keyword string) ([]AccountSearchItem, e
 	if err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "搜索用户失败，请稍后再试", err)
 	}
-	
+
 	accounts := make([]AccountSearchItem, 0, len(rows))
 	for _, row := range rows {
 		accounts = append(accounts, AccountSearchItem{

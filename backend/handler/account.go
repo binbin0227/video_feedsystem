@@ -67,7 +67,7 @@ func GetAccountProfile(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-	
+
 	c.JSON(consts.StatusOK, map[string]any{
 		"profile": newAccountProfileResponse(profile),
 	})
@@ -81,7 +81,7 @@ func SearchAccounts(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-	
+
 	c.JSON(consts.StatusOK, AccountSearchResponse{
 		Accounts: newAccountSearchListResponse(accounts),
 	})

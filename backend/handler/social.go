@@ -28,7 +28,7 @@ func FollowUser(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-	
+
 	followerID, err := getAccountID(c)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)

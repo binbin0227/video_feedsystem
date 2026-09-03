@@ -179,7 +179,7 @@ func GetVideoDetail(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-	
+
 	video, err := service.GetVideoDetail(ctx, videoID)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)

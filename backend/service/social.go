@@ -192,7 +192,7 @@ func GetFollowerList(ctx context.Context, vloggerID, cursor int64, limit int) (F
 			FollowedAt: row.FollowedAt,
 		})
 	}
-	
+
 	var nextCursor int64
 	if hasMore && len(rows) > 0 {
 		nextCursor = rows[len(rows)-1].RelationID

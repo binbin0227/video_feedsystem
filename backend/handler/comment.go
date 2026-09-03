@@ -107,7 +107,7 @@ func DeleteComment(ctx context.Context, c *app.RequestContext) {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
-	
+
 	c.JSON(consts.StatusOK, map[string]string{
 		"message": "评论删除成功",
 	})

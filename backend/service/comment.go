@@ -155,7 +155,7 @@ func DeleteComment(ctx context.Context, accountID, commentID int64) error {
 		}
 		return apperr.Wrap(apperr.KindInternal, "删除评论失败，请稍后再试", err)
 	}
-	
+
 	// 评论删除成功后异步刷新热门分数。
 	notifyHotVideoRefresh(ctx, comment.VideoID)
 
