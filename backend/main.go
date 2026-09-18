@@ -11,6 +11,7 @@ import (
 	"video_feedsystem/mq"
 	"video_feedsystem/router"
 	"video_feedsystem/service"
+	"video_feedsystem/storage"
 	"video_feedsystem/utils"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
@@ -45,8 +46,15 @@ func main() {
 	defer cancel()
 
 	// 获取配置参数
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("加载配置失败: %v", err)
+	}
 
+	// 初始化上传目录
+	if err := storage.Init(cfg.UploadRoot); err != nil {
+		log.Fatalf("初始化上传目录失败: %v", err)
+	}
 	// 初始化数据库
 	if err := db.InitDatabase(cfg.MySQLDSN); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
@@ -59,10 +67,11 @@ func main() {
 	if err := utils.InitJWT(cfg.JWTSecret); err != nil {
 		log.Fatalf("JWT 初始化失败: %v", err)
 	}
-	// 初始化 Redis ，初始成功化后重建热门榜
+	// 初始化 Redis，初始化成功后重建热门榜
 	if err := redis.InitRedis(cfg.RedisAddr, cfg.RedisPwd); err != nil {
-		log.Printf("Redis 初始化失败，服务将继续启动: %v", err)
-	} else if err := service.RebuildHotVideos(appCtx); err != nil {
+		log.Fatalf("Redis 初始化失败: %v", err)
+	}
+	if err := service.RebuildHotVideos(appCtx); err != nil {
 		log.Printf("热门榜重建失败，服务将继续启动: %v", err)
 	} else {
 		log.Println("热门榜重建完成")
@@ -71,7 +80,7 @@ func main() {
 	startHotVideoRebuild(appCtx)
 	// 初始化 RabbitMQ
 	if err := mq.InitRabbitMQ(cfg.RabbitMQURL); err != nil {
-		log.Printf("RabbitMQ 初始化失败，服务将继续启动: %v", err)
+		log.Fatalf("RabbitMQ 初始化失败: %v", err)
 	} else {
 		defer mq.Close()
 		if err := mq.StartVideoHotRefreshConsumer(service.RefreshHotVideo); err != nil {
@@ -88,11 +97,7 @@ func main() {
 	)
 
 	h.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:5189",
-			"http://127.0.0.1:5189",
-			"https://frp-fun.com:64718",
-		},
+		AllowOrigins: cfg.CORSOrigins,
 		AllowMethods: []string{
 			"GET",
 			"POST",

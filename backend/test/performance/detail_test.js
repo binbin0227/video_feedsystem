@@ -22,7 +22,7 @@ export const options = {
 
 export default function () {
     const videoID = "629324078238408507";
-    const url = `http://127.0.0.1:20000/video/detail?video_id=${videoID}`;
+    const url = `http://127.0.0.1:8080/video/detail?video_id=${videoID}`;
 
     const response = http.get(url);
 

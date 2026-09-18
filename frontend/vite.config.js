@@ -14,7 +14,7 @@ export default defineConfig({
     proxy: {
       // 外网只需要穿透前端端口；API 和媒体请求由 Vite 转发到本机 Hertz 服务。
       '/api': {
-        target: 'http://127.0.0.1:20000',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

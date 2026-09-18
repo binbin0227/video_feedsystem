@@ -8,3 +8,5 @@ AGENTS.md
 testdata/
 .agents
 docs/
+*.exe
+skills-lock.json

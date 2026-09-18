@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +13,7 @@ import (
 	"video_feedsystem/dal/redis"
 	"video_feedsystem/model"
 	"video_feedsystem/pkg/apperr"
+	"video_feedsystem/storage"
 	"video_feedsystem/utils"
 
 	"github.com/cloudwego/hertz/pkg/common/hlog"
@@ -83,7 +83,7 @@ func validateUploadPath(uploadPath, category string, authorID int64) error {
 
 // 确认路径引用的文件真实存在
 func validateUploadedFile(uploadURL, label string) error {
-	localPath := filepath.Join(".run", filepath.FromSlash(strings.TrimPrefix(uploadURL, "/")))
+	localPath := storage.ResolveUploadURL(uploadURL)
 	fileInfo, err := os.Stat(localPath)
 	if errors.Is(err, os.ErrNotExist) {
 		return apperr.New(apperr.KindInvalid, label+"文件不存在，请重新上传")
