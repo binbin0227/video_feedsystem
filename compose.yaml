@@ -64,7 +64,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       HOST_PORTS: 0.0.0.0:8080
       UPLOAD_ROOT: /app/data
-      CORS_ORIGINS: http://localhost:${FRONTEND_PORT}
+      CORS_ORIGINS: ${CORS_ORIGINS}
     volumes:
       - uploads_data:/app/data
     depends_on:
