@@ -9,7 +9,7 @@ RUN go mod download
 
 # 复制源码，编译出 Linux 可执行文件。
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/video-feedsystem .
+RUN CGO_ENABLED=0 GOOS=linux GOMAXPROCS=1 go build -p=1 -trimpath -ldflags="-s -w" -o /out/video-feedsystem .
 
 
 # 阶段二：只保留运行程序需要的内容
