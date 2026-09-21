@@ -17,28 +17,44 @@ func StartVideoHotRefreshConsumer(handler VideoHotRefreshHandler) error {
 	if handler == nil {
 		return fmt.Errorf("视频热度刷新处理函数不能为空")
 	}
+
+	resourceMu.Lock()
+	defer resourceMu.Unlock()
+	consumerHandler = handler
+
 	if conn == nil {
-		return fmt.Errorf("RabbitMQ 尚未初始化")
+		return fmt.Errorf("RabbitMQ 当前未连接，消费者将在重连成功后自动启动")
 	}
 	if consumerCh != nil && !consumerCh.IsClosed() {
 		return fmt.Errorf("视频热度刷新消费者已经启动")
 	}
 
-	newConsumerCh, err := conn.Channel()
+	newConsumerCh, deliveries, err := openVideoHotRefreshConsumer(conn)
 	if err != nil {
-		return fmt.Errorf("创建 RabbitMQ 消费 Channel 失败: %w", err)
+		return err
+	}
+	consumerCh = newConsumerCh
+
+	go consumeVideoHotRefreshDeliveries(deliveries, handler)
+	return nil
+}
+
+func openVideoHotRefreshConsumer(connection *amqp.Connection) (*amqp.Channel, <-chan amqp.Delivery, error) {
+	newConsumerCh, err := connection.Channel()
+	if err != nil {
+		return nil, nil, fmt.Errorf("创建 RabbitMQ 消费 Channel 失败: %w", err)
 	}
 
 	// 消费者也声明自己依赖的交换机、队列和绑定
 	if err := declareTopology(newConsumerCh); err != nil {
 		_ = newConsumerCh.Close()
-		return err
+		return nil, nil, err
 	}
 
 	// 最多允许当前消费者持有 10 条尚未确认的消息
 	if err := newConsumerCh.Qos(10, 0, false); err != nil {
 		_ = newConsumerCh.Close()
-		return fmt.Errorf("设置 RabbitMQ 消费者预取数量失败: %w", err)
+		return nil, nil, fmt.Errorf("设置 RabbitMQ 消费者预取数量失败: %w", err)
 	}
 
 	deliveries, err := newConsumerCh.Consume(
@@ -52,13 +68,10 @@ func StartVideoHotRefreshConsumer(handler VideoHotRefreshHandler) error {
 	)
 	if err != nil {
 		_ = newConsumerCh.Close()
-		return fmt.Errorf("启动 RabbitMQ 消费者失败: %w", err)
+		return nil, nil, fmt.Errorf("启动 RabbitMQ 消费者失败: %w", err)
 	}
 
-	consumerCh = newConsumerCh
-
-	go consumeVideoHotRefreshDeliveries(deliveries, handler)
-	return nil
+	return newConsumerCh, deliveries, nil
 }
 
 // 持续读取 RabbitMQ 推送的消息

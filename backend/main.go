@@ -80,16 +80,20 @@ func main() {
 	startHotVideoRebuild(appCtx)
 	// 初始化 RabbitMQ
 	if err := mq.InitRabbitMQ(cfg.RabbitMQURL); err != nil {
-		log.Fatalf("RabbitMQ 初始化失败: %v", err)
+		log.Printf("RabbitMQ 初始化失败，服务将继续启动并在后台重连: %v", err)
 	} else {
-		defer mq.Close()
-		if err := mq.StartVideoHotRefreshConsumer(service.RefreshHotVideo); err != nil {
-			log.Printf("RabbitMQ 热度刷新消费者启动失败: %v", err)
-		} else {
-			log.Println("RabbitMQ 热度刷新消费者启动完成")
-		}
 		log.Println("RabbitMQ 初始化完成")
 	}
+	defer mq.Close()
+
+	if err := mq.StartVideoHotRefreshConsumer(service.RefreshHotVideo); err != nil {
+		log.Printf("RabbitMQ 热度刷新消费者当前未启动，将在连接恢复后自动启动: %v", err)
+	} else {
+		log.Println("RabbitMQ 热度刷新消费者启动完成")
+	}
+
+	service.StartOutboxRelay(appCtx)
+	log.Println("Outbox Relay 启动完成")
 
 	h := server.Default(
 		server.WithHostPorts(cfg.HostPorts),

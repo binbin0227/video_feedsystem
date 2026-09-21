@@ -28,8 +28,8 @@ func PublishVideoHotRefresh(ctx context.Context, videoID int64) error {
 		Body:         body,
 	}
 
-	publishMu.Lock()
-	defer publishMu.Unlock()
+	resourceMu.Lock()
+	defer resourceMu.Unlock()
 
 	if publishCh == nil || publishCh.IsClosed() {
 		return fmt.Errorf("RabbitMQ 发布 Channel 未初始化或已经关闭")

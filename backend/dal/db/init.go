@@ -33,6 +33,7 @@ func InitDatabase(dsn string) error {
 		&model.Like{},
 		&model.Comment{},
 		&model.Social{},
+		&model.OutboxEvent{},
 	); err != nil {
 		return fmt.Errorf("数据库建表失败: %w", err)
 	}

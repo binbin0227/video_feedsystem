@@ -24,51 +24,53 @@ type LikedVideoRow struct {
 	LikeCount      int       `gorm:"column:like_count"`
 }
 
-// 在同一事务中创建点赞关系并增加视频点赞数
-func CreateLike(ctx context.Context, like *model.Like) error {
+func CreateLike(ctx context.Context, like *model.Like, outboxEvent *model.OutboxEvent) error {
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 联合唯一索引阻止重复点赞
 		if err := tx.Create(like).Error; err != nil {
 			return err
 		}
-		// 在数据库中原子递增
+
 		result := tx.Model(&model.Video{}).Where("id = ?", like.VideoID).
 			UpdateColumn("like_count", gorm.Expr("like_count + 1"))
 		if result.Error != nil {
 			return result.Error
 		}
-
-		// 视频不存在时撤销刚才插入的点赞记录
 		if result.RowsAffected == 0 {
 			return gorm.ErrRecordNotFound
 		}
+
+		if err := tx.Create(outboxEvent).Error; err != nil {
+			return err
+		}
+
 		return nil
 	})
 }
 
-// 在同一事务中删除点赞关系并减少视频点赞数
-func DeleteLike(ctx context.Context, accountID, videoID int64) error {
+func DeleteLike(ctx context.Context, accountID, videoID int64, outboxEvent *model.OutboxEvent) error {
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Where("account_id = ? AND video_id = ?", accountID, videoID).Delete(&model.Like{})
+		result := tx.Where("account_id = ? AND video_id = ?", accountID, videoID).
+			Delete(&model.Like{})
 		if result.Error != nil {
 			return result.Error
 		}
-
-		// 若没有删除任何记录，说明用户原本没有点赞
 		if result.RowsAffected == 0 {
 			return ErrLikeNotFound
 		}
-		// 在数据库中原子递减，同时避免计数因异常数据变成负数
+
 		result = tx.Model(&model.Video{}).Where("id = ?", videoID).
 			UpdateColumn("like_count", gorm.Expr("CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END"))
 		if result.Error != nil {
 			return result.Error
 		}
-
-		// 视频不存在时，撤销前面删除点赞记录的操作
 		if result.RowsAffected == 0 {
 			return gorm.ErrRecordNotFound
 		}
+
+		if err := tx.Create(outboxEvent).Error; err != nil {
+			return err
+		}
+
 		return nil
 	})
 }

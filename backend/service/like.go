@@ -32,16 +32,24 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if videoID <= 0 {
 		return apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
+
 	likeID, err := utils.GenerateID()
 	if err != nil {
 		return apperr.Wrap(apperr.KindInternal, "生成点赞记录失败", err)
 	}
+
 	like := &model.Like{
 		ID:        likeID,
 		VideoID:   videoID,
 		AccountID: accountID,
 	}
-	err = db.CreateLike(ctx, like)
+
+	outboxEvent, err := newVideoHotRefreshOutboxEvent(videoID)
+	if err != nil {
+		return apperr.Wrap(apperr.KindInternal, "创建热度刷新事件失败", err)
+	}
+
+	err = db.CreateLike(ctx, like, outboxEvent)
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return apperr.New(apperr.KindConflict, "请勿重复点赞")
@@ -55,8 +63,6 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
 		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
-	// 热度排行榜通过 RabbitMQ 异步刷新
-	notifyHotVideoRefresh(ctx, videoID)
 
 	return nil
 }
@@ -69,7 +75,13 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if videoID <= 0 {
 		return apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
-	err := db.DeleteLike(ctx, accountID, videoID)
+
+	outboxEvent, err := newVideoHotRefreshOutboxEvent(videoID)
+	if err != nil {
+		return apperr.Wrap(apperr.KindInternal, "创建热度刷新事件失败", err)
+	}
+
+	err = db.DeleteLike(ctx, accountID, videoID, outboxEvent)
 	if err != nil {
 		if errors.Is(err, db.ErrLikeNotFound) {
 			return apperr.New(apperr.KindConflict, "尚未点赞")
@@ -83,8 +95,6 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
 		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
-	// 热度排行榜通过 RabbitMQ 异步刷新
-	notifyHotVideoRefresh(ctx, videoID)
 
 	return nil
 }

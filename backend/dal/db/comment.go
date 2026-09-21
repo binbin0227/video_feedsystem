@@ -7,9 +7,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// 将新评论写入数据库
-func CreateComment(ctx context.Context, comment *model.Comment) error {
-	return DB.WithContext(ctx).Create(comment).Error
+func CreateComment(ctx context.Context, comment *model.Comment, outboxEvent *model.OutboxEvent) error {
+	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(comment).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(outboxEvent).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // 按评论 ID 倒序分页，并预加载评论作者
@@ -41,15 +48,18 @@ func FindCommentByID(ctx context.Context, commentID int64) (*model.Comment, erro
 	return &comment, nil
 }
 
-// 根据主键删除评论
-func DeleteCommentByID(ctx context.Context, commentID int64) error {
-	result := DB.WithContext(ctx).Delete(&model.Comment{}, commentID)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-
-	return nil
+func DeleteCommentByID(ctx context.Context, commentID int64, outboxEvent *model.OutboxEvent) error {
+	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Delete(&model.Comment{}, commentID)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := tx.Create(outboxEvent).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

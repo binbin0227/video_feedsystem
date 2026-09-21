@@ -71,12 +71,14 @@ func CreateComment(ctx context.Context, accountID, videoID int64, content string
 		AccountID: accountID,
 		Content:   content,
 	}
-	if err := db.CreateComment(ctx, comment); err != nil {
+	outboxEvent, err := newVideoHotRefreshOutboxEvent(videoID)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.KindInternal, "创建热度刷新事件失败", err)
+	}
+	if err := db.CreateComment(ctx, comment, outboxEvent); err != nil {
 		return nil, apperr.Wrap(apperr.KindInternal, "发布评论失败，请稍后再试", err)
 	}
 
-	// 评论保存成功后异步刷新热门分数
-	notifyHotVideoRefresh(ctx, videoID)
 	comment.Account = *account
 	return comment, nil
 }
@@ -149,15 +151,16 @@ func DeleteComment(ctx context.Context, accountID, commentID int64) error {
 	if comment.AccountID != accountID {
 		return apperr.New(apperr.KindForbidden, "无权删除该评论")
 	}
-	if err := db.DeleteCommentByID(ctx, commentID); err != nil {
+	outboxEvent, err := newVideoHotRefreshOutboxEvent(comment.VideoID)
+	if err != nil {
+		return apperr.Wrap(apperr.KindInternal, "创建热度刷新事件失败", err)
+	}
+	if err := db.DeleteCommentByID(ctx, commentID, outboxEvent); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperr.New(apperr.KindNotFound, "评论不存在")
 		}
 		return apperr.Wrap(apperr.KindInternal, "删除评论失败，请稍后再试", err)
 	}
-
-	// 评论删除成功后异步刷新热门分数。
-	notifyHotVideoRefresh(ctx, comment.VideoID)
 
 	return nil
 }
