@@ -21,6 +21,16 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type AuthTokensResponse struct {
+	AccessToken                 string `json:"access_token"`
+	RefreshToken                string `json:"refresh_token"`
+	AccessTokenExpiresInSeconds int    `json:"expires_in"`
+}
+
 // 处理用户注册请求
 func Register(ctx context.Context, c *app.RequestContext) {
 	var req RegisterRequest
@@ -45,13 +55,64 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	token, err := service.Login(ctx, req.Username, req.Password)
+	result, err := service.Login(ctx, req.Username, req.Password)
 	if err != nil {
 		httpx.WriteError(ctx, c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]string{"token": token})
+	c.JSON(consts.StatusOK, AuthTokensResponse{
+		AccessToken:                 result.AccessToken,
+		RefreshToken:                result.RefreshToken,
+		AccessTokenExpiresInSeconds: 1800,
+	})
+}
+
+func RefreshAuthTokens(ctx context.Context, c *app.RequestContext) {
+	var req RefreshTokenRequest
+	if err := c.BindAndValidate(&req); err != nil {
+		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
+		return
+	}
+
+	result, err := service.RefreshAuthTokens(ctx, req.RefreshToken)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	c.JSON(consts.StatusOK, AuthTokensResponse{
+		AccessToken:                 result.AccessToken,
+		RefreshToken:                result.RefreshToken,
+		AccessTokenExpiresInSeconds: 1800,
+	})
+}
+
+func Logout(ctx context.Context, c *app.RequestContext) {
+	var req RefreshTokenRequest
+	if err := c.BindAndValidate(&req); err != nil {
+		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
+		return
+	}
+
+	accountID, err := getAccountID(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	accessTokenID, accessTokenExpiresAt, err := getAccessTokenMetadata(c)
+	if err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	if err := service.Logout(ctx, accountID, accessTokenID, accessTokenExpiresAt, req.RefreshToken); err != nil {
+		httpx.WriteError(ctx, c, err)
+		return
+	}
+
+	c.JSON(consts.StatusOK, map[string]string{"message": "退出登录成功"})
 }
 
 // 返回指定账号的主页信息

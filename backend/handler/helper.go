@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"video_feedsystem/pkg/apperr"
 
@@ -22,6 +23,22 @@ func getAccountID(c *app.RequestContext) (int64, error) {
 		return 0, apperr.Wrap(apperr.KindInternal, "服务器内部错误，请稍后再试", errors.New("accountID 类型错误"))
 	}
 	return accountID, nil
+}
+
+func getAccessTokenMetadata(c *app.RequestContext) (string, time.Time, error) {
+	accessTokenIDValue, accessTokenIDExists := c.Get("accessTokenID")
+	accessTokenExpiresAtValue, accessTokenExpiresAtExists := c.Get("accessTokenExpiresAt")
+	if !accessTokenIDExists || !accessTokenExpiresAtExists {
+		return "", time.Time{}, apperr.New(apperr.KindUnauthorized, "用户未登录")
+	}
+
+	accessTokenID, accessTokenIDOK := accessTokenIDValue.(string)
+	accessTokenExpiresAt, accessTokenExpiresAtOK := accessTokenExpiresAtValue.(time.Time)
+	if !accessTokenIDOK || !accessTokenExpiresAtOK {
+		return "", time.Time{}, apperr.Wrap(apperr.KindInternal, "服务器内部错误，请稍后再试", errors.New("Token 上下文类型错误"))
+	}
+
+	return accessTokenID, accessTokenExpiresAt, nil
 }
 
 // 读取并校验大于 0 的 int64 查询参数

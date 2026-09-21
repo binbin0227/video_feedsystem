@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"video_feedsystem/dal/redis"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/pkg/httpx"
 	"video_feedsystem/utils"
@@ -28,15 +29,33 @@ func JWTAuth() app.HandlerFunc {
 			return
 		}
 
-		claims, err := utils.ParseToken(parts[1])
+		claims, err := utils.ParseAccessToken(parts[1])
 		if err != nil {
 			httpx.WriteError(ctx, c, apperr.New(apperr.KindUnauthorized, "Token 已过期或无效"))
 			c.Abort()
 			return
 		}
+		if claims.ID == "" || claims.ExpiresAt == nil {
+			httpx.WriteError(ctx, c, apperr.New(apperr.KindUnauthorized, "Token 已过期或无效"))
+			c.Abort()
+			return
+		}
 
-		// 将 accountID 放入请求上下文
+		revoked, err := redis.IsAccessTokenRevoked(ctx, claims.ID)
+		if err != nil {
+			httpx.WriteError(ctx, c, apperr.Wrap(apperr.KindInternal, "登录状态校验失败，请稍后再试", err))
+			c.Abort()
+			return
+		}
+		if revoked {
+			httpx.WriteError(ctx, c, apperr.New(apperr.KindUnauthorized, "Token 已失效，请重新登录"))
+			c.Abort()
+			return
+		}
+
 		c.Set("accountID", claims.AccountID)
+		c.Set("accessTokenID", claims.ID)
+		c.Set("accessTokenExpiresAt", claims.ExpiresAt.Time)
 		c.Next(ctx)
 	}
 }

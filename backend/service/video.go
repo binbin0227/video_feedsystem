@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -33,6 +35,8 @@ type AuthorVideoListResult struct {
 	NextCursor int64
 	HasMore    bool
 }
+
+var videoDetailGroup singleflight.Group
 
 // 将 Redis 缓存转换为 service 层使用的结构
 func videoFromDetailCache(cache *redis.VideoDetailCache) *model.Video {
@@ -240,35 +244,83 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 		return nil, apperr.New(apperr.KindInvalid, "视频ID不合法")
 	}
 
-	cache, found, err := redis.GetVideoDetailCache(ctx, videoID)
+	// 第一次查缓存：正常命中时走快速路径，不进入 Singleflight。
+	cachedVideo, hit, err := getVideoDetailFromCache(ctx, videoID)
+	if hit {
+		return cachedVideo, err
+	}
 	if err != nil {
-		hlog.CtxWarnf(ctx, "查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
-	} else if found {
-		if cache.NotFound {
-			// 缓存表示视频不存在
-			return nil, apperr.New(apperr.KindNotFound, "视频不存在")
-		}
-		// 缓存表示视频存在
-		return videoFromDetailCache(cache), nil
+		hlog.CtxWarnf(
+			ctx,"查询 Redis 视频详情缓存失败，video_id=%d，error=%v",videoID,err,
+		)
 	}
 
-	// Redis 异常时使用 MySQL
-	video, err := db.FindVideoWithAuthorByID(ctx, videoID)
-	if err != nil {
-		// MySQL 发现视频不存在时,在缓存中写入空值
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if cacheErr := redis.SetVideoNotFoundCache(ctx, videoID); cacheErr != nil {
-				hlog.CtxWarnf(ctx, "写入 Redis 视频空值缓存失败，video_id=%d，error=%v", videoID, cacheErr)
+	key := strconv.FormatInt(videoID, 10)
+
+	value, err, _ := videoDetailGroup.Do(key, func() (any, error) {
+		// 获得执行权后再次检查缓存。
+		cachedVideo, hit, cacheErr := getVideoDetailFromCache(ctx, videoID)
+		if hit {
+			return cachedVideo, cacheErr
+		}
+		if cacheErr != nil {
+			hlog.CtxWarnf(
+				ctx, "Singleflight 内查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, cacheErr,
+			)
+		}
+
+		video, queryErr := db.FindVideoWithAuthorByID(ctx, videoID)
+		if queryErr != nil {
+			if errors.Is(queryErr, gorm.ErrRecordNotFound) {
+				if cacheErr := redis.SetVideoNotFoundCache(ctx, videoID); cacheErr != nil {
+					hlog.CtxWarnf(
+						ctx, "写入 Redis 视频空值缓存失败，video_id=%d，error=%v", videoID, cacheErr,
+					)
+				}
+		
+				return nil, apperr.New(apperr.KindNotFound,"视频不存在",)
 			}
-			return nil, apperr.New(apperr.KindNotFound, "视频不存在")
+
+			return nil, apperr.Wrap(
+				apperr.KindInternal,
+				"查询视频详情失败，请稍后再试",
+				queryErr,
+			)
 		}
-		return nil, apperr.Wrap(apperr.KindInternal, "查询视频详情失败，请稍后再试", err)
+
+		if cacheErr := redis.SetVideoDetailCache(ctx,newVideoDetailCache(video),); cacheErr != nil {
+			hlog.CtxWarnf(
+				ctx,"写入 Redis 视频详情缓存失败，video_id=%d，error=%v",videoID,cacheErr,
+			)
+		}
+
+		return video, nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	// MySQL查询结果写入缓存
-	if err := redis.SetVideoDetailCache(ctx, newVideoDetailCache(video)); err != nil {
-		hlog.CtxWarnf(ctx, "写入 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+	video, ok := value.(*model.Video)
+	if !ok {
+		return nil, apperr.New(apperr.KindInternal,"视频详情结果类型错误",
+		)
 	}
 
 	return video, nil
+}
+
+func getVideoDetailFromCache(ctx context.Context, videoID int64) (*model.Video, bool, error) {
+	cache, found, err := redis.GetVideoDetailCache(ctx, videoID)
+	if err != nil {
+		return nil, false, err
+	}
+	if !found {
+		return nil, false, nil
+	}
+	if cache.NotFound {
+		return nil, true, apperr.New(apperr.KindNotFound, "视频不存在")
+	}
+
+	return videoFromDetailCache(cache), true, nil
 }

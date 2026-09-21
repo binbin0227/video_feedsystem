@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { getAccountId, isLoggedIn, removeToken } from '../../utils/auth'
+import { logoutAccount } from '../../api/account'
+import { clearAuthTokens, getAccountId, getRefreshToken, isLoggedIn } from '../../utils/auth'
 
 const GUEST_PROMPT_DISMISSED_KEY = 'guest-login-prompt-dismissed'
 const route = useRoute()
@@ -18,13 +19,23 @@ function syncLoginState() {
   accountId.value = getAccountId()
 }
 
-function handleLogout() {
-  removeToken()
-  loggedIn.value = false
-  accountId.value = ''
-  sessionStorage.removeItem(GUEST_PROMPT_DISMISSED_KEY)
-  guestPromptDismissed.value = false
-  router.push('/')
+async function handleLogout() {
+  const refreshToken = getRefreshToken()
+
+  try {
+    if (refreshToken) {
+      await logoutAccount(refreshToken)
+    }
+  } catch {
+    // 即使服务端暂时不可用，也要允许用户清除当前浏览器中的登录状态。
+  } finally {
+    clearAuthTokens()
+    loggedIn.value = false
+    accountId.value = ''
+    sessionStorage.removeItem(GUEST_PROMPT_DISMISSED_KEY)
+    guestPromptDismissed.value = false
+    router.push('/')
+  }
 }
 
 function dismissGuestLoginPrompt() {

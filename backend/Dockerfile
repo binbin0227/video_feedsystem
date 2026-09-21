@@ -1,5 +1,5 @@
 # 阶段一：使用完整的 Go 环境编译程序
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /src
 

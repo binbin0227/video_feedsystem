@@ -1,6 +1,10 @@
 package utils
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
@@ -8,10 +12,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret []byte
+var accessTokenSecret []byte
 
 // 保存 JWT 中的账号 ID 和标准有效期字段（过期、签发、生效时间等）
-type Claims struct {
+type AccessTokenClaims struct {
 	AccountID int64 `json:"account_id"`
 	jwt.RegisteredClaims
 }
@@ -20,41 +24,61 @@ func InitJWT(secret string) error {
 	if strings.TrimSpace(secret) == "" {
 		return errors.New("JWT 密钥不能为空")
 	}
-	jwtSecret = []byte(secret)
+	accessTokenSecret = []byte(secret)
 	return nil
 }
 
 // 为指定账号生成 Token
-func GenerateToken(accountID int64) (string, error) {
-	if len(jwtSecret) == 0 {
+func GenerateAccessToken(accountID int64) (string, error) {
+	if len(accessTokenSecret) == 0 {
 		return "", errors.New("JWT 尚未初始化")
 	}
 
+	accessTokenID, err := generateAccessTokenID()
+	if err != nil {
+		return "", errors.New("生成 Token ID 失败")
+	}
+
 	now := time.Now()
-	claims := Claims{
+	claims := AccessTokenClaims{
 		AccountID: accountID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(2 * time.Hour)),
+			ID:        accessTokenID,
+			ExpiresAt: jwt.NewNumericDate(now.Add(30 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	unsignedAccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return unsignedAccessToken.SignedString(accessTokenSecret)
+}
+
+func GenerateRefreshToken() (string, string, error) {
+	refreshToken, err := generateRandomToken(32)
+	if err != nil {
+		return "", "", err
+	}
+
+	return refreshToken, HashRefreshToken(refreshToken), nil
+}
+
+func HashRefreshToken(refreshToken string) string {
+	sum := sha256.Sum256([]byte(refreshToken))
+	return hex.EncodeToString(sum[:])
 }
 
 // 验证 Token 并解析用户信息
-func ParseToken(tokenStr string) (*Claims, error) {
-	if len(jwtSecret) == 0 {
+func ParseAccessToken(accessToken string) (*AccessTokenClaims, error) {
+	if len(accessTokenSecret) == 0 {
 		return nil, errors.New("JWT 尚未初始化")
 	}
 
-	token, err := jwt.ParseWithClaims(
-		tokenStr,
-		&Claims{},
-		func(token *jwt.Token) (any, error) {
-			return jwtSecret, nil
+	parsedAccessToken, err := jwt.ParseWithClaims(
+		accessToken,
+		&AccessTokenClaims{},
+		func(jwtToken *jwt.Token) (any, error) {
+			return accessTokenSecret, nil
 		},
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
 	)
@@ -62,9 +86,22 @@ func ParseToken(tokenStr string) (*Claims, error) {
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(*Claims)
-	if !ok || !token.Valid {
+	claims, ok := parsedAccessToken.Claims.(*AccessTokenClaims)
+	if !ok || !parsedAccessToken.Valid {
 		return nil, errors.New("无效的 Token")
 	}
 	return claims, nil
+}
+
+// 生成 jti
+func generateAccessTokenID() (string, error) {
+	return generateRandomToken(16)
+}
+
+func generateRandomToken(size int) (string, error) {
+	data := make([]byte, size)
+	if _, err := rand.Read(data); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(data), nil
 }

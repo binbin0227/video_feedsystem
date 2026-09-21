@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { loginAccount } from '../api/account'
-import { saveToken } from '../utils/auth'
+import { saveAuthTokens } from '../utils/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,12 +45,14 @@ async function handleSubmit() {
 
   try {
     const data = await loginAccount(username, form.password)
+    const accessToken = data?.access_token
+    const refreshToken = data?.refresh_token
 
-    if (!data?.token) {
-      throw new Error('登录响应中没有 Token')
+    if (!accessToken || !refreshToken) {
+      throw new Error('登录响应中缺少登录凭证')
     }
 
-    saveToken(data.token)
+    saveAuthTokens(accessToken, refreshToken)
     await router.replace(getSafeRedirect() || '/')
   } catch (error) {
     errorMessage.value = error.message
