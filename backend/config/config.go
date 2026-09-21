@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -11,30 +12,36 @@ import (
 
 // 保存服务启动所需的数据库、JWT 和监听地址配置。
 type Config struct {
-	MySQLDSN    string
-	RedisAddr   string
-	RedisPwd    string
-	RabbitMQURL string
-	JWTSecret   string
-	HostPorts   string
-	CORSOrigins []string
-	UploadRoot  string
+	MySQLDSN      string
+	RedisAddr     string
+	RedisPwd      string
+	RabbitMQURL   string
+	JWTSecret     string
+	HostPorts     string
+	CORSOrigins   []string
+	UploadRoot    string
+	UploadEnabled bool
 }
 
 func Load() (Config, error) {
 	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		log.Printf("读取 .env 文件失败: %v", err)
 	}
+	uploadEnabled, err := strconv.ParseBool(getEnv("UPLOAD_ENABLED", "false"))
+	if err != nil {
+		return Config{}, errors.New("UPLOAD_ENABLED 必须是 true 或 false")
+	}
 
 	cfg := Config{
-		MySQLDSN:    getEnv("MYSQL_DSN", ""),
-		JWTSecret:   getEnv("JWT_SECRET", ""),
-		HostPorts:   getEnv("HOST_PORTS", "0.0.0.0:8080"),
-		RedisAddr:   getEnv("REDIS_ADDR", "127.0.0.1:6379"),
-		RedisPwd:    getEnv("REDIS_PWD", ""),
-		RabbitMQURL: getEnv("RABBITMQ_URL", ""),
-		CORSOrigins: splitCSV(getEnv("CORS_ORIGINS", "")),
-		UploadRoot:  getEnv("UPLOAD_ROOT", "./.run"),
+		MySQLDSN:      getEnv("MYSQL_DSN", ""),
+		JWTSecret:     getEnv("JWT_SECRET", ""),
+		HostPorts:     getEnv("HOST_PORTS", "0.0.0.0:8080"),
+		RedisAddr:     getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+		RedisPwd:      getEnv("REDIS_PWD", ""),
+		RabbitMQURL:   getEnv("RABBITMQ_URL", ""),
+		CORSOrigins:   splitCSV(getEnv("CORS_ORIGINS", "")),
+		UploadRoot:    getEnv("UPLOAD_ROOT", "./.run"),
+		UploadEnabled: uploadEnabled,
 	}
 
 	if cfg.MySQLDSN == "" {

@@ -8,14 +8,14 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-func InitRouter(h *server.Hertz) {
+func InitRouter(h *server.Hertz, uploadEnabled bool) {
 	h.GET("/ping", handler.Ping)
 
 	// 映射成了静态文件并支持分段加载
 	h.StaticFS("/uploads", &app.FS{Root: storage.Root(), AcceptByteRange: true})
 
 	registerAccountRoutes(h)
-	registerVideoRoutes(h)
+	registerVideoRoutes(h, uploadEnabled)
 	registerFeedRoutes(h)
 	registerCommentRoutes(h)
 	registerSocialRoutes(h)

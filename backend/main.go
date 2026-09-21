@@ -118,6 +118,6 @@ func main() {
 	}))
 
 	// 挂载路由
-	router.InitRouter(h)
+	router.InitRouter(h, cfg.UploadEnabled)
 	h.Spin()
 }
