@@ -6,6 +6,7 @@ repomix-output*.xml
 *.log
 AGENTS.md
 testdata/
+backend/test/reports/*.json
 .agents
 docs/
 *.exe
