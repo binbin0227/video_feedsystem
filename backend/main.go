@@ -97,7 +97,9 @@ func main() {
 	log.Println("Outbox Relay 启动完成")
 
 	h := gin.New()
-	h.Use(gin.Logger(), gin.Recovery())
+	h.Use(gin.Logger())
+	h.Use(middleware.PrometheusMetrics())
+	h.Use(gin.Recovery())
 	h.Use(middleware.RequestBodyLimit(220 * 1024 * 1024)) // 最大请求体为 220 MB
 
 	h.Use(cors.New(cors.Config{
