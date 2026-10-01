@@ -4,10 +4,10 @@ import (
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 )
 
-func registerAccountRoutes(h *server.Hertz) {
+func registerAccountRoutes(h *gin.Engine) {
 	account := h.Group("/account")
 	{
 		account.POST("/register", handler.Register)

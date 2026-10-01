@@ -1,16 +1,15 @@
 package handler
 
 import (
-	"context"
+	"net/http"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/gin-gonic/gin"
 )
 
 // 确认服务是否正常启动
-func Ping(ctx context.Context, c *app.RequestContext) {
-	c.JSON(consts.StatusOK, map[string]string{
+func Ping(c *gin.Context) {
+	c.JSON(http.StatusOK, map[string]string{
 		"message": "pong",
-		"status":  "Hertz 启动成功",
+		"status":  "Gin 启动成功",
 	})
 }

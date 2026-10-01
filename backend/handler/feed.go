@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"context"
+	"net/http"
 	"strconv"
 	"video_feedsystem/pkg/httpx"
 	"video_feedsystem/service"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/gin-gonic/gin"
 )
 
 type FeedResponse struct {
@@ -17,27 +16,27 @@ type FeedResponse struct {
 }
 
 // 分页返回公共视频流
-func ListFeed(ctx context.Context, c *app.RequestContext) {
+func ListFeed(c *gin.Context) {
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	limit, err := parseOptionalLimit(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
-	result, err := service.GetFeed(ctx, cursor, limit)
+	result, err := service.GetFeed(c.Request.Context(), cursor, limit)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-	c.JSON(consts.StatusOK, FeedResponse{
+	c.JSON(http.StatusOK, FeedResponse{
 		Videos:     newFeedVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
 		HasMore:    result.HasMore,
@@ -45,33 +44,33 @@ func ListFeed(ctx context.Context, c *app.RequestContext) {
 }
 
 // 分页返回当前用户的关注流
-func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
+func ListFollowingFeed(c *gin.Context) {
 	followerID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
 	limit, err := parseOptionalLimit(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
-	result, err := service.GetFollowingFeed(ctx, followerID, cursor, limit)
+	result, err := service.GetFollowingFeed(c.Request.Context(), followerID, cursor, limit)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	nextCursor := ""
 	if result.NextCursor > 0 {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
-	c.JSON(consts.StatusOK, FeedResponse{
+	c.JSON(http.StatusOK, FeedResponse{
 		Videos:     newFeedVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
 		HasMore:    result.HasMore,
@@ -79,13 +78,13 @@ func ListFollowingFeed(ctx context.Context, c *app.RequestContext) {
 }
 
 // 返回全站热度最高的 10 个视频
-func ListHotFeed(ctx context.Context, c *app.RequestContext) {
-	videos, err := service.GetHotFeed(ctx)
+func ListHotFeed(c *gin.Context) {
+	videos, err := service.GetHotFeed(c.Request.Context())
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
-	c.JSON(consts.StatusOK, map[string]any{
+	c.JSON(http.StatusOK, map[string]any{
 		"videos": newFeedVideoListResponse(videos),
 	})
 }

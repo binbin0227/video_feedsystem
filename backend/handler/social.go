@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"context"
+	"net/http"
 	"strconv"
 
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/pkg/httpx"
 	"video_feedsystem/service"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/gin-gonic/gin"
 )
 
 type FollowRequest struct {
@@ -17,108 +16,108 @@ type FollowRequest struct {
 }
 
 // 让当前登录用户关注目标账号
-func FollowUser(ctx context.Context, c *app.RequestContext) {
+func FollowUser(c *gin.Context) {
 	var req FollowRequest
-	if err := c.BindAndValidate(&req); err != nil {
-		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.WriteError(c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
 		return
 	}
 	vloggerID, err := parsePositiveInt64String(req.VloggerID, "vlogger_id")
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
 	followerID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	if err := service.FollowUser(ctx, followerID, vloggerID); err != nil {
-		httpx.WriteError(ctx, c, err)
+	if err := service.FollowUser(c.Request.Context(), followerID, vloggerID); err != nil {
+		httpx.WriteError(c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]string{
+	c.JSON(http.StatusOK, map[string]string{
 		"message": "关注成功",
 	})
 }
 
 // 取消当前登录用户对目标账号的关注
-func UnfollowUser(ctx context.Context, c *app.RequestContext) {
+func UnfollowUser(c *gin.Context) {
 	var req FollowRequest
-	if err := c.BindAndValidate(&req); err != nil {
-		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.WriteError(c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
 		return
 	}
 	vloggerID, err := parsePositiveInt64String(req.VloggerID, "vlogger_id")
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
 	followerID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	if err := service.UnfollowUser(ctx, followerID, vloggerID); err != nil {
-		httpx.WriteError(ctx, c, err)
+	if err := service.UnfollowUser(c.Request.Context(), followerID, vloggerID); err != nil {
+		httpx.WriteError(c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]string{
+	c.JSON(http.StatusOK, map[string]string{
 		"message": "取消关注成功",
 	})
 }
 
 // 返回当前登录用户对目标账号的关注状态
-func GetFollowStatus(ctx context.Context, c *app.RequestContext) {
+func GetFollowStatus(c *gin.Context) {
 	vloggerID, err := parsePositiveInt64Query(c, "vlogger_id")
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	followerID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	following, err := service.CheckFollowStatus(ctx, followerID, vloggerID)
+	following, err := service.CheckFollowStatus(c.Request.Context(), followerID, vloggerID)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]bool{
+	c.JSON(http.StatusOK, map[string]bool{
 		"is_following": following,
 	})
 }
 
 // 分页查询当前用户关注的账号
-func GetFollowingList(ctx context.Context, c *app.RequestContext) {
+func GetFollowingList(c *gin.Context) {
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	limit, err := parseOptionalLimit(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	followerID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	result, err := service.GetFollowingList(ctx, followerID, cursor, limit)
+	result, err := service.GetFollowingList(c.Request.Context(), followerID, cursor, limit)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	nextCursor := ""
@@ -126,7 +125,7 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
 
-	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
+	c.JSON(http.StatusOK, FollowingOrFollowerListResponse{
 		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
 		NextCursor: nextCursor,
 		HasMore:    result.HasMore,
@@ -134,26 +133,26 @@ func GetFollowingList(ctx context.Context, c *app.RequestContext) {
 }
 
 // 分页查询当前用户粉丝的账号
-func GetFollowerList(ctx context.Context, c *app.RequestContext) {
+func GetFollowerList(c *gin.Context) {
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	limit, err := parseOptionalLimit(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	vloggerID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	result, err := service.GetFollowerList(ctx, vloggerID, cursor, limit)
+	result, err := service.GetFollowerList(c.Request.Context(), vloggerID, cursor, limit)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	nextCursor := ""
@@ -161,7 +160,7 @@ func GetFollowerList(ctx context.Context, c *app.RequestContext) {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
 
-	c.JSON(consts.StatusOK, FollowingOrFollowerListResponse{
+	c.JSON(http.StatusOK, FollowingOrFollowerListResponse{
 		Accounts:   newFollowingOrFollowerAccountListResponse(result.Accounts),
 		HasMore:    result.HasMore,
 		NextCursor: nextCursor,

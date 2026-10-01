@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/singleflight"
+	"log"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/sync/singleflight"
 
 	"video_feedsystem/dal/db"
 	"video_feedsystem/dal/redis"
@@ -18,7 +20,6 @@ import (
 	"video_feedsystem/storage"
 	"video_feedsystem/utils"
 
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"gorm.io/gorm"
 )
 
@@ -250,8 +251,8 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 		return cachedVideo, err
 	}
 	if err != nil {
-		hlog.CtxWarnf(
-			ctx,"查询 Redis 视频详情缓存失败，video_id=%d，error=%v",videoID,err,
+		log.Printf(
+			"查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err,
 		)
 	}
 
@@ -264,8 +265,8 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 			return cachedVideo, cacheErr
 		}
 		if cacheErr != nil {
-			hlog.CtxWarnf(
-				ctx, "Singleflight 内查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, cacheErr,
+			log.Printf(
+				"Singleflight 内查询 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, cacheErr,
 			)
 		}
 
@@ -273,12 +274,12 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 		if queryErr != nil {
 			if errors.Is(queryErr, gorm.ErrRecordNotFound) {
 				if cacheErr := redis.SetVideoNotFoundCache(ctx, videoID); cacheErr != nil {
-					hlog.CtxWarnf(
-						ctx, "写入 Redis 视频空值缓存失败，video_id=%d，error=%v", videoID, cacheErr,
+					log.Printf(
+						"写入 Redis 视频空值缓存失败，video_id=%d，error=%v", videoID, cacheErr,
 					)
 				}
-		
-				return nil, apperr.New(apperr.KindNotFound,"视频不存在",)
+
+				return nil, apperr.New(apperr.KindNotFound, "视频不存在")
 			}
 
 			return nil, apperr.Wrap(
@@ -288,9 +289,9 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 			)
 		}
 
-		if cacheErr := redis.SetVideoDetailCache(ctx,newVideoDetailCache(video),); cacheErr != nil {
-			hlog.CtxWarnf(
-				ctx,"写入 Redis 视频详情缓存失败，video_id=%d，error=%v",videoID,cacheErr,
+		if cacheErr := redis.SetVideoDetailCache(ctx, newVideoDetailCache(video)); cacheErr != nil {
+			log.Printf(
+				"写入 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, cacheErr,
 			)
 		}
 
@@ -303,8 +304,7 @@ func GetVideoDetail(ctx context.Context, videoID int64) (*model.Video, error) {
 
 	video, ok := value.(*model.Video)
 	if !ok {
-		return nil, apperr.New(apperr.KindInternal,"视频详情结果类型错误",
-		)
+		return nil, apperr.New(apperr.KindInternal, "视频详情结果类型错误")
 	}
 
 	return video, nil

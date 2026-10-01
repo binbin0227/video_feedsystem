@@ -8,11 +8,11 @@ import (
 
 	"video_feedsystem/pkg/apperr"
 
-	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/gin-gonic/gin"
 )
 
 // 从 JWT 中间件写入的上下文中取出 accountID
-func getAccountID(c *app.RequestContext) (int64, error) {
+func getAccountID(c *gin.Context) (int64, error) {
 	value, exists := c.Get("accountID")
 	if !exists {
 		return 0, apperr.New(apperr.KindUnauthorized, "用户未登录")
@@ -25,7 +25,7 @@ func getAccountID(c *app.RequestContext) (int64, error) {
 	return accountID, nil
 }
 
-func getAccessTokenMetadata(c *app.RequestContext) (string, time.Time, error) {
+func getAccessTokenMetadata(c *gin.Context) (string, time.Time, error) {
 	accessTokenIDValue, accessTokenIDExists := c.Get("accessTokenID")
 	accessTokenExpiresAtValue, accessTokenExpiresAtExists := c.Get("accessTokenExpiresAt")
 	if !accessTokenIDExists || !accessTokenExpiresAtExists {
@@ -42,7 +42,7 @@ func getAccessTokenMetadata(c *app.RequestContext) (string, time.Time, error) {
 }
 
 // 读取并校验大于 0 的 int64 查询参数
-func parsePositiveInt64Query(c *app.RequestContext, name string) (int64, error) {
+func parsePositiveInt64Query(c *gin.Context, name string) (int64, error) {
 	value := strings.TrimSpace(c.Query(name))
 	if value == "" {
 		return 0, apperr.New(apperr.KindInvalid, "缺少 "+name+" 参数")
@@ -67,7 +67,7 @@ func parsePositiveInt64String(value, name string) (int64, error) {
 }
 
 // 解析游标，没传时返回 0
-func parseOptionalCursor(c *app.RequestContext) (int64, error) {
+func parseOptionalCursor(c *gin.Context) (int64, error) {
 	value := strings.TrimSpace(c.Query("cursor"))
 	if value == "" {
 		return 0, nil
@@ -82,7 +82,7 @@ func parseOptionalCursor(c *app.RequestContext) (int64, error) {
 }
 
 // 解析数量，没传时返回 0
-func parseOptionalLimit(c *app.RequestContext) (int, error) {
+func parseOptionalLimit(c *gin.Context) (int, error) {
 	value := strings.TrimSpace(c.Query("limit"))
 	if value == "" {
 		return 0, nil

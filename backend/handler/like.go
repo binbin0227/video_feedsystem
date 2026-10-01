@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"context"
+	"net/http"
 	"strconv"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/pkg/httpx"
 	"video_feedsystem/service"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/gin-gonic/gin"
 )
 
 type LikeRequest struct {
@@ -22,104 +21,104 @@ type LikedVideoListResponse struct {
 }
 
 // 点赞视频
-func LikeVideo(ctx context.Context, c *app.RequestContext) {
+func LikeVideo(c *gin.Context) {
 	var req LikeRequest
-	if err := c.BindAndValidate(&req); err != nil {
-		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.WriteError(c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
 		return
 	}
 
 	videoID, err := parsePositiveInt64String(req.VideoID, "video_id")
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	accountID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	if err := service.LikeVideo(ctx, accountID, videoID); err != nil {
-		httpx.WriteError(ctx, c, err)
+	if err := service.LikeVideo(c.Request.Context(), accountID, videoID); err != nil {
+		httpx.WriteError(c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]string{"message": "点赞成功"})
+	c.JSON(http.StatusOK, map[string]string{"message": "点赞成功"})
 }
 
 // 取消视频点赞
-func UnlikeVideo(ctx context.Context, c *app.RequestContext) {
+func UnlikeVideo(c *gin.Context) {
 	var req LikeRequest
-	if err := c.BindAndValidate(&req); err != nil {
-		httpx.WriteError(ctx, c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.WriteError(c, apperr.New(apperr.KindInvalid, "JSON 解析失败"))
 		return
 	}
 
 	videoID, err := parsePositiveInt64String(req.VideoID, "video_id")
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	accountID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	if err := service.UnlikeVideo(ctx, accountID, videoID); err != nil {
-		httpx.WriteError(ctx, c, err)
+	if err := service.UnlikeVideo(c.Request.Context(), accountID, videoID); err != nil {
+		httpx.WriteError(c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]string{
+	c.JSON(http.StatusOK, map[string]string{
 		"message": "取消点赞成功",
 	})
 }
 
 // 返回当前用户对视频的点赞状态
-func GetLikeStatus(ctx context.Context, c *app.RequestContext) {
+func GetLikeStatus(c *gin.Context) {
 	videoID, err := parsePositiveInt64Query(c, "video_id")
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	accountID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	liked, err := service.CheckLikeStatus(ctx, accountID, videoID)
+	liked, err := service.CheckLikeStatus(c.Request.Context(), accountID, videoID)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	c.JSON(consts.StatusOK, map[string]bool{"is_liked": liked})
+	c.JSON(http.StatusOK, map[string]bool{"is_liked": liked})
 }
 
 // 分页查询当前用户点赞过的视频
-func GetLikedVideoList(ctx context.Context, c *app.RequestContext) {
+func GetLikedVideoList(c *gin.Context) {
 	accountID, err := getAccountID(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	cursor, err := parseOptionalCursor(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 	limit, err := parseOptionalLimit(c)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
-	result, err := service.GetLikedVideoList(ctx, accountID, cursor, limit)
+	result, err := service.GetLikedVideoList(c.Request.Context(), accountID, cursor, limit)
 	if err != nil {
-		httpx.WriteError(ctx, c, err)
+		httpx.WriteError(c, err)
 		return
 	}
 
@@ -128,7 +127,7 @@ func GetLikedVideoList(ctx context.Context, c *app.RequestContext) {
 		nextCursor = strconv.FormatInt(result.NextCursor, 10)
 	}
 
-	c.JSON(consts.StatusOK, LikedVideoListResponse{
+	c.JSON(http.StatusOK, LikedVideoListResponse{
 		Videos:     newVideoListResponse(result.Videos),
 		NextCursor: nextCursor,
 		HasMore:    result.HasMore,

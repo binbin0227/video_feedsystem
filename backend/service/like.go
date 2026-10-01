@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"video_feedsystem/dal/db"
 	"video_feedsystem/dal/redis"
 	"video_feedsystem/model"
 	"video_feedsystem/pkg/apperr"
 	"video_feedsystem/utils"
 
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"gorm.io/gorm"
 )
 
@@ -61,7 +61,7 @@ func LikeVideo(ctx context.Context, accountID, videoID int64) error {
 	}
 	// 点赞数变化后删除旧详情缓存
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
-		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+		log.Printf("删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
 
 	return nil
@@ -93,7 +93,7 @@ func UnlikeVideo(ctx context.Context, accountID, videoID int64) error {
 	}
 	// 点赞数变化后删除旧详情缓存
 	if err := redis.DeleteVideoDetailCache(ctx, videoID); err != nil {
-		hlog.CtxWarnf(ctx, "删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
+		log.Printf("删除 Redis 视频详情缓存失败，video_id=%d，error=%v", videoID, err)
 	}
 
 	return nil

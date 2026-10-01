@@ -5,10 +5,10 @@ import (
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 )
 
-func registerVideoRoutes(h *server.Hertz, uploadEnabled bool) {
+func registerVideoRoutes(h *gin.Engine, uploadEnabled bool) {
 	video := h.Group("/video")
 	{
 		video.GET("/list-by-author-id", handler.ListByAuthorID)
