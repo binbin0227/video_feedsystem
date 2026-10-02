@@ -1,0 +1,52 @@
+groups:
+  - name: video-feed-backend
+    rules:
+      - alert: BackendMetricsUnavailable
+        expr: up{job="video-feed-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "后端指标持续无法抓取"
+          description: "{{ $labels.instance }} 的指标已连续至少 1 分钟无法抓取，请检查后端服务及网络连接。"
+
+      - alert: BackendHighErrorRate
+        expr: |
+          (
+            sum by (route) (
+              rate(video_feed_http_requests_total{job="video-feed-backend", status=~"5.."}[5m])
+            )
+            /
+            sum by (route) (
+              rate(video_feed_http_requests_total{job="video-feed-backend"}[5m])
+            )
+          ) > 0.05
+          and on (route)
+          sum by (route) (
+            rate(video_feed_http_requests_total{job="video-feed-backend"}[5m])
+          ) >= 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "接口服务端错误率持续升高"
+          description: "{{ $labels.route }} 最近 5 分钟的 5xx 比例超过 5%，平均请求量至少为 1 次/秒，且条件已持续至少 2 分钟。"
+
+      - alert: BackendHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (route, le) (
+              rate(video_feed_http_request_duration_seconds_bucket{job="video-feed-backend", status=~"2.."}[5m])
+            )
+          ) > 0.5
+          and on (route)
+          sum by (route) (
+            rate(video_feed_http_request_duration_seconds_count{job="video-feed-backend", status=~"2.."}[5m])
+          ) >= 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "接口成功请求 P95 延迟持续升高"
+          description: "{{ $labels.route }} 最近 5 分钟成功请求的 P95 超过 500ms，平均成功请求量至少为 1 次/秒，且条件已持续至少 2 分钟。"

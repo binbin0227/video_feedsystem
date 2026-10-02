@@ -1,0 +1,13 @@
+route:
+  receiver: agent-webhook
+  group_by: [alertname, job, route]
+  group_wait: 30s
+  group_interval: 1m
+  repeat_interval: 10m
+
+receivers:
+  - name: agent-webhook
+    # 确定 Agent 接口地址后启用；当前只接收和展示告警，不发送通知。
+    # webhook_configs:
+    #   - url: "https://your-agent.example.com/alertmanager/webhook"
+    #     send_resolved: true
