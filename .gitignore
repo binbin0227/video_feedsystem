@@ -11,3 +11,4 @@ backend/test/reports/*.json
 docs/
 *.exe
 skills-lock.json
+*.tar
