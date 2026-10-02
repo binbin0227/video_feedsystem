@@ -3,7 +3,12 @@ set -euo pipefail
 
 cd /opt/video-feedsystem
 
+previous_commit=$(git rev-parse HEAD)
 git pull --ff-only
+if [[ $(git rev-parse HEAD) != "$previous_commit" ]]; then
+  exec bash /opt/video-feedsystem/scripts/deploy.sh
+fi
+
 docker compose config --quiet
 docker compose pull backend frontend prometheus alertmanager
 docker compose up -d --no-build --pull never --force-recreate --wait --wait-timeout 120 backend frontend prometheus alertmanager
