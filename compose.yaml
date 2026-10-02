@@ -52,7 +52,7 @@ services:
       start_period: 30s
 
   backend:
-    image: video-feedsystem-backend:local
+    image: ${BACKEND_IMAGE:-video-feedsystem-backend:local}
     build:
       context: ./backend
     restart: unless-stopped
