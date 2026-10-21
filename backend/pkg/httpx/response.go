@@ -1,13 +1,14 @@
 package httpx
 
 import (
+	"context"
 	"errors"
-	"log"
-	"net/http"
 
 	"video_feedsystem/pkg/apperr"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/common/hlog"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
 // ErrorResponse 是所有失败请求共用的 JSON 响应结构。
@@ -17,7 +18,7 @@ type ErrorResponse struct {
 }
 
 // WriteError 统一记录错误日志并返回 JSON。
-func WriteError(c *gin.Context, err error) {
+func WriteError(ctx context.Context, c *app.RequestContext, err error) {
 	var appErr *apperr.AppError
 	if !errors.As(err, &appErr) {
 		appErr = apperr.Wrap(apperr.KindInternal, "服务器内部错误，请稍后再试", err)
@@ -28,7 +29,7 @@ func WriteError(c *gin.Context, err error) {
 		if loggedError == nil {
 			loggedError = err
 		}
-		log.Printf("path=%s, error=%v", c.Request.URL.Path, loggedError)
+		hlog.CtxErrorf(ctx, "path=%s, error=%v", c.Path(), loggedError)
 	}
 
 	c.JSON(statusFromKind(appErr.Kind), ErrorResponse{
@@ -41,18 +42,18 @@ func WriteError(c *gin.Context, err error) {
 func statusFromKind(kind apperr.Kind) int {
 	switch kind {
 	case apperr.KindInvalid:
-		return http.StatusBadRequest
+		return consts.StatusBadRequest
 	case apperr.KindUnauthorized:
-		return http.StatusUnauthorized
+		return consts.StatusUnauthorized
 	case apperr.KindForbidden:
-		return http.StatusForbidden
+		return consts.StatusForbidden
 	case apperr.KindNotFound:
-		return http.StatusNotFound
+		return consts.StatusNotFound
 	case apperr.KindConflict:
-		return http.StatusConflict
+		return consts.StatusConflict
 	case apperr.KindTooManyRequests:
-		return http.StatusTooManyRequests
+		return consts.StatusTooManyRequests
 	default:
-		return http.StatusInternalServerError
+		return consts.StatusInternalServerError
 	}
 }

@@ -4,10 +4,10 @@ import (
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-func registerFeedRoutes(h *gin.Engine) {
+func registerFeedRoutes(h *server.Hertz) {
 	feed := h.Group("/feed")
 	{
 		feed.GET("/hot", handler.ListHotFeed)

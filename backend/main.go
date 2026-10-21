@@ -15,8 +15,9 @@ import (
 	"video_feedsystem/storage"
 	"video_feedsystem/utils"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	"github.com/cloudwego/hertz/pkg/app/middlewares/server/recovery"
+	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/hertz-contrib/cors"
 )
 
 const hotVideoRebuildInterval = 10 * time.Minute // 定时重建热门榜的周期
@@ -96,11 +97,12 @@ func main() {
 	service.StartOutboxRelay(appCtx)
 	log.Println("Outbox Relay 启动完成")
 
-	h := gin.New()
-	h.Use(gin.Logger())
+	h := server.New(
+		server.WithHostPorts(cfg.HostPorts),
+		server.WithMaxRequestBodySize(220*1024*1024), // 最大请求体为 220 MB
+	)
 	h.Use(middleware.PrometheusMetrics())
-	h.Use(gin.Recovery())
-	h.Use(middleware.RequestBodyLimit(220 * 1024 * 1024)) // 最大请求体为 220 MB
+	h.Use(recovery.Recovery())
 
 	h.Use(cors.New(cors.Config{
 		AllowOrigins: cfg.CORSOrigins,
@@ -121,7 +123,5 @@ func main() {
 
 	// 挂载路由
 	router.InitRouter(h, cfg.UploadEnabled)
-	if err := h.Run(cfg.HostPorts); err != nil {
-		log.Fatalf("启动 HTTP 服务失败: %v", err)
-	}
+	h.Spin()
 }

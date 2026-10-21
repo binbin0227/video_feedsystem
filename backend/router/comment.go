@@ -5,10 +5,10 @@ import (
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-func registerCommentRoutes(h *gin.Engine) {
+func registerCommentRoutes(h *server.Hertz) {
 	comment := h.Group("/comment")
 	{
 		comment.GET("/list", handler.ListComments)

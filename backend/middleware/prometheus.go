@@ -1,11 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -43,11 +44,11 @@ func init() {
 	)
 }
 
-func PrometheusMetrics() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		path := c.Request.URL.Path
+func PrometheusMetrics() app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		path := string(c.Path())
 		if path == "/metrics" || path == "/ping" || strings.HasPrefix(path, "/uploads/") {
-			c.Next()
+			c.Next(ctx)
 			return
 		}
 
@@ -56,15 +57,15 @@ func PrometheusMetrics() gin.HandlerFunc {
 		httpRequestsInFlight.Inc()
 		defer httpRequestsInFlight.Dec()
 
-		c.Next()
+		c.Next(ctx)
 
 		route := c.FullPath()
 		if route == "" {
 			route = "unmatched"
 		}
 
-		method := c.Request.Method
-		status := strconv.Itoa(c.Writer.Status())
+		method := string(c.Method())
+		status := strconv.Itoa(c.Response.StatusCode())
 
 		httpRequestsTotal.
 			WithLabelValues(method, route, status).

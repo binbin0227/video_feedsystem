@@ -4,10 +4,10 @@ import (
 	"video_feedsystem/handler"
 	"video_feedsystem/middleware"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
-func registerSocialRoutes(h *gin.Engine) {
+func registerSocialRoutes(h *server.Hertz) {
 	social := h.Group("/social")
 	{
 		authorized := social.Group("", middleware.JWTAuth())
