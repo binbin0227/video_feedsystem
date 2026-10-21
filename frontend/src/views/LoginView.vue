@@ -101,11 +101,11 @@ async function handleSubmit() {
     </div>
 
     <aside class="auth-showcase" aria-label="登录功能说明">
-      <span class="auth-showcase__badge">AUTH / 01</span>
+      <span class="auth-showcase__badge">FRAMEFLOW</span>
       <div>
-        <p class="auth-showcase__kicker">JWT SESSION</p>
+        <p class="auth-showcase__kicker">发现 · 喜欢 · 分享</p>
         <h2>一次登录，解锁完整互动。</h2>
-        <p>登录凭证保存在当前浏览器中，访问受保护页面时会自动携带。</p>
+        <p>遇见有趣的人，收藏心动的瞬间，让每一次表达都有回应。</p>
       </div>
       <ul class="auth-feature-list">
         <li><span>01</span>关注视频流</li>

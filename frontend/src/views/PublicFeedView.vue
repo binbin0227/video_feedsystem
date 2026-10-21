@@ -70,6 +70,7 @@ function scrollToVideo(index) {
 }
 
 function handleFeedKeydown(event) {
+  if (event.target.closest('button, input, textarea, a, [contenteditable="true"]')) return
   if (event.key === 'ArrowDown' || event.key === 'PageDown') {
     event.preventDefault()
     scrollToVideo(Math.min(activeIndex.value + 1, videos.value.length - 1))
@@ -80,6 +81,7 @@ function handleFeedKeydown(event) {
 }
 
 function handleFeedWheel(event) {
+  if (event.target.closest('.player-controls, .feed-comments-panel, .immersive-video-copy.is-expanded')) return
   window.clearTimeout(wheelUnlockTimer)
   wheelUnlockTimer = window.setTimeout(() => {
     wheelGestureLocked = false
@@ -110,7 +112,7 @@ onBeforeUnmount(() => window.clearTimeout(wheelUnlockTimer))
     <div v-if="initialLoading" class="immersive-feed-state" aria-label="正在加载公共视频流" aria-busy="true">
       <span class="immersive-feed-loader"></span>
       <strong>正在准备视频流</strong>
-      <p>获取最新发布的视频和媒体地址。</p>
+      <p>精彩即将开始，请稍候。</p>
     </div>
 
     <div v-else-if="errorMessage && videos.length === 0" class="immersive-feed-state" role="alert">
@@ -145,6 +147,8 @@ onBeforeUnmount(() => window.clearTimeout(wheelUnlockTimer))
         :volume="volume"
         :should-preload="Math.abs(index - activeIndex) <= 1"
         @active="handleSlideActive(index)"
+        @previous="scrollToVideo(Math.max(index - 1, 0))"
+        @next="scrollToVideo(Math.min(index + 1, videos.length - 1))"
         @toggle-sound="soundEnabled = $event"
         @update-volume="volume = $event"
       />

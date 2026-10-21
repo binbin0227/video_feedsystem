@@ -57,7 +57,7 @@ onMounted(() => loadVideos())
   <section class="liked-page">
     <header class="collection-heading">
       <div>
-        <p class="eyebrow">LIKED VIDEOS</p>
+        <p class="eyebrow">心动记录</p>
         <h1>我点赞的视频</h1>
         <p>按最近点赞时间查看当前账号喜欢过的作品。</p>
       </div>

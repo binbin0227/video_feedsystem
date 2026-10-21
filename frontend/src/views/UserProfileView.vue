@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getAccountProfile } from '../api/account'
 import { followAccount, getFollowStatus, unfollowAccount } from '../api/social'
 import { getVideosByAuthor } from '../api/video'
@@ -201,7 +201,8 @@ watch(accountId, loadPage, { immediate: true })
     <template v-else>
       <header class="profile-hero">
         <div class="profile-hero__copy">
-          <p class="eyebrow">{{ isSelf ? 'MY PROFILE' : 'CREATOR PROFILE' }}</p>
+          <span class="profile-avatar" aria-hidden="true">{{ profile.username?.slice(0, 1) || '创' }}</span>
+          <p class="eyebrow">{{ isSelf ? '我的主页' : '创作者' }}</p>
           <h1>{{ profile.username }}</h1>
           <div class="profile-identity">
             <span>ID {{ profile.account_id }}</span>
@@ -220,16 +221,15 @@ watch(accountId, loadPage, { immediate: true })
         <dl class="profile-stats">
           <div><dt>作品</dt><dd>{{ formatCount(profile.video_count) }}</dd></div>
           <div><dt>获赞</dt><dd>{{ formatCount(profile.received_like_count) }}</dd></div>
-          <div><dt>关注</dt><dd>{{ formatCount(profile.following_count) }}</dd></div>
-          <div><dt>粉丝</dt><dd>{{ formatCount(profile.follower_count) }}</dd></div>
+          <div><dt>关注</dt><dd><RouterLink v-if="isSelf" to="/me/following">{{ formatCount(profile.following_count) }}</RouterLink><template v-else>{{ formatCount(profile.following_count) }}</template></dd></div>
+          <div><dt>粉丝</dt><dd><RouterLink v-if="isSelf" to="/me/followers">{{ formatCount(profile.follower_count) }}</RouterLink><template v-else>{{ formatCount(profile.follower_count) }}</template></dd></div>
         </dl>
       </header>
 
       <section class="profile-works" aria-labelledby="profile-works-title">
         <header>
           <div>
-            <p class="eyebrow">PUBLISHED WORKS</p>
-            <h2 id="profile-works-title">作者作品</h2>
+            <nav class="profile-tabs" aria-label="作品分类"><span id="profile-works-title" class="active">作品 {{ formatCount(profile.video_count) }}</span><RouterLink v-if="isSelf" to="/me/liked">喜欢</RouterLink></nav>
           </div>
           <span>已加载 {{ videos.length }} 条</span>
         </header>

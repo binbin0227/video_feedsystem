@@ -315,9 +315,9 @@ onBeforeUnmount(() => {
   <section class="publish-page">
     <header class="publish-heading">
       <div>
-        <p class="eyebrow">CREATOR STUDIO</p>
+        <p class="eyebrow">创作中心</p>
         <h1>上传并发布</h1>
-        <p>依次上传视频、封面，再将作品信息提交给后端。</p>
+        <p>分享你的灵感，让这一帧被更多人看见。</p>
       </div>
       <ol class="publish-steps" aria-label="发布步骤">
         <li :class="{ active: stage === 'upload-video' || uploadedVideoUrl }"><span>1</span>视频</li>
@@ -375,7 +375,7 @@ onBeforeUnmount(() => {
 
       <aside class="publish-preview" aria-label="作品预览">
         <div class="publish-preview__heading">
-          <span>PREVIEW</span>
+          <span>作品预览</span>
           <small>本地预览，不会提前发布</small>
         </div>
 

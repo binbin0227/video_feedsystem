@@ -4,6 +4,11 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { deleteComment, getCommentList, publishComment } from '../../api/comment'
 
 const COMMENT_PAGE_SIZE = 8
+const panelElement = ref(null)
+const mobileQuery = window.matchMedia('(max-width: 760px)')
+const isMobile = ref(mobileQuery.matches)
+const previousFocus = document.activeElement
+function syncMobile() { isMobile.value = mobileQuery.matches }
 
 const props = defineProps({
   videoId: {
@@ -158,26 +163,37 @@ async function handleDeleteComment(comment) {
 }
 
 function handleKeydown(event) {
+  if (event.key === 'Tab' && isMobile.value) {
+    const controls = [...panelElement.value.querySelectorAll('a[href], button:not(:disabled), textarea:not(:disabled), input:not(:disabled)')]
+    const first = controls[0]
+    const last = controls.at(-1)
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+  }
   if (event.key === 'Escape') {
     emit('close')
   }
 }
 
 onMounted(() => {
+  mobileQuery.addEventListener('change', syncMobile)
+  panelElement.value?.querySelector('button')?.focus()
   window.addEventListener('keydown', handleKeydown)
   loadComments()
 })
 
 onBeforeUnmount(() => {
+  mobileQuery.removeEventListener('change', syncMobile)
+  if (previousFocus?.isConnected) previousFocus.focus()
   window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <template>
-  <aside class="feed-comments-panel" role="dialog" aria-modal="true" :aria-labelledby="`feed-comments-title-${videoId}`" @wheel.stop>
+  <aside ref="panelElement" class="feed-comments-panel" :role="isMobile ? 'dialog' : 'region'" :aria-modal="isMobile ? true : undefined" :aria-labelledby="`feed-comments-title-${videoId}`" @wheel.stop>
     <header class="feed-comments-panel__header">
       <div>
-        <span>COMMENTS</span>
+        <span>一起聊聊</span>
         <h2 :id="`feed-comments-title-${videoId}`">评论</h2>
       </div>
       <div>

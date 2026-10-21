@@ -29,9 +29,9 @@ onMounted(loadHotVideos)
   <section class="hot-page">
     <header class="collection-heading">
       <div>
-        <p class="eyebrow">REDIS TOP 10</p>
+        <p class="eyebrow">热门榜</p>
         <h1>全站热门</h1>
-        <p>根据点赞和评论产生的热度排序，展示当前全站最热门的十条视频。</p>
+        <p>发现大家正在喜欢的精彩内容</p>
       </div>
       <span v-if="videos.length">当前 {{ videos.length }} 条</span>
     </header>
@@ -52,7 +52,7 @@ onMounted(loadHotVideos)
 
     <div v-else-if="videos.length === 0" class="collection-state">
       <strong>暂时没有热门视频</strong>
-      <p>视频获得点赞或评论后，会按照 Redis 中的热度顺序出现在这里。</p>
+      <p>有了更多互动，精彩作品就会出现在这里。</p>
     </div>
 
     <div v-else class="collection-video-grid">

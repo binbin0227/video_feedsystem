@@ -5,6 +5,7 @@ import { followAccount, getFollowStatus, unfollowAccount } from '../../api/socia
 import { getVideoLikeStatus, likeVideo, unlikeVideo } from '../../api/video'
 import { getAccountId } from '../../utils/auth'
 import { getMediaUrl } from '../../utils/media'
+import AppIcon from '../common/AppIcon.vue'
 import FeedCommentsPanel from './FeedCommentsPanel.vue'
 
 const props = defineProps({
@@ -34,7 +35,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['active', 'toggle-sound', 'update-volume'])
+const emit = defineEmits(['active', 'toggle-sound', 'update-volume', 'previous', 'next'])
 
 const route = useRoute()
 const router = useRouter()
@@ -45,6 +46,11 @@ const isPaused = ref(true)
 const firstFrameReady = ref(false)
 const mediaError = ref('')
 const progress = ref(0)
+const currentTime = ref(0)
+const duration = ref(0)
+const copyExpanded = ref(false)
+const theaterMode = ref(false)
+const stageElement = ref(null)
 const currentAccountId = ref(getAccountId())
 const liked = ref(false)
 const likeCount = ref(Number(props.video.like_count || 0))
@@ -131,6 +137,7 @@ function prepareVideo() {
     return
   }
 
+  duration.value = Number.isFinite(videoElement.value.duration) ? videoElement.value.duration : 0
   videoElement.value.volume = getPlayerVolume(normalizedVolume.value)
   videoElement.value.muted = !props.soundEnabled || normalizedVolume.value === 0
 
@@ -252,6 +259,31 @@ function updateVolume(event) {
   }
 }
 
+function formatTime(value) {
+  const seconds = Math.floor(Number(value) || 0)
+  return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`
+}
+function seekVideo(event) {
+  const player = videoElement.value
+  if (!player || !Number.isFinite(player.duration) || player.duration <= 0) return
+  player.currentTime = (Number(event.target.value) / 100) * player.duration
+  updateProgress()
+}
+function handlePlayerEscape(event) {
+  if (event.key === 'Escape') theaterMode.value = false
+}
+async function toggleFullscreen() {
+  if (theaterMode.value) { theaterMode.value = false; return }
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen()
+    else if (stageElement.value?.requestFullscreen) await stageElement.value.requestFullscreen()
+    else if (videoElement.value?.webkitEnterFullscreen) videoElement.value.webkitEnterFullscreen()
+    else theaterMode.value = true
+  } catch {
+    // 自动化环境或受限浏览器可能拒绝原生全屏，回退为网页全屏。
+    theaterMode.value = true
+  }
+}
 function updateProgress() {
   const player = videoElement.value
 
@@ -260,6 +292,8 @@ function updateProgress() {
     return
   }
 
+  currentTime.value = player.currentTime
+  duration.value = player.duration
   progress.value = Math.min(100, (player.currentTime / player.duration) * 100)
 }
 
@@ -400,6 +434,7 @@ watch(() => props.video.like_count, (value) => {
 })
 
 onMounted(() => {
+  window.addEventListener('keydown', handlePlayerEscape, true)
   observer = new IntersectionObserver(([entry]) => {
     const active = entry.isIntersecting && entry.intersectionRatio >= 0.65
 
@@ -415,6 +450,7 @@ onMounted(() => {
       playVideo()
     } else {
       commentsOpen.value = false
+      theaterMode.value = false
       pauseVideo()
     }
   }, {
@@ -427,6 +463,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handlePlayerEscape, true)
   observer?.disconnect()
   cancelFrameReveal()
   window.clearTimeout(volumeSliderTimer)
@@ -436,150 +473,157 @@ onBeforeUnmount(() => {
 
 <template>
   <article ref="slideElement" class="immersive-video-slide" :aria-label="`第 ${position} 条视频：${video.title}`">
-    <div class="immersive-video-stage">
-      <video
-        v-if="videoSrc"
-        ref="videoElement"
-        class="immersive-video-player"
-        :class="{ 'is-ready': firstFrameReady }"
-        :src="videoSrc"
-        :muted="!soundEnabled || normalizedVolume === 0"
-        loop
-        playsinline
-        :preload="shouldPreload ? 'auto' : 'metadata'"
-        tabindex="0"
-        @click="togglePlayback"
-        @keydown.space.prevent="togglePlayback"
-        @loadstart="handleLoadStart"
-        @loadedmetadata="prepareVideo"
-        @play="isPaused = false"
-        @playing="handlePlaying"
-        @pause="isPaused = true"
-        @timeupdate="updateProgress"
-        @error="handleMediaError"
-      >
-        当前浏览器不支持视频播放。
-      </video>
+    <Teleport to="body" :disabled="!theaterMode">
+      <div ref="stageElement" class="immersive-video-stage" :class="{ 'comments-open': commentsOpen, 'is-theater': theaterMode }">
+        <video
+          v-if="videoSrc"
+          ref="videoElement"
+          class="immersive-video-player"
+          :class="{ 'is-ready': firstFrameReady }"
+          :src="videoSrc"
+          :muted="!soundEnabled || normalizedVolume === 0"
+          loop
+          playsinline
+          :preload="shouldPreload ? 'auto' : 'metadata'"
+          tabindex="0"
+          @click="togglePlayback"
+          @keydown.space.prevent="togglePlayback"
+          @loadstart="handleLoadStart"
+          @loadedmetadata="prepareVideo"
+          @play="isPaused = false"
+          @playing="handlePlaying"
+          @pause="isPaused = true"
+          @timeupdate="updateProgress"
+          @error="handleMediaError"
+        >
+          当前浏览器不支持视频播放。
+        </video>
 
-      <div v-else class="immersive-video-unavailable">
-        <strong>播放地址不可用</strong>
-        <span>可以进入详情页查看视频信息</span>
-      </div>
-
-      <button
-        v-if="videoSrc && isPaused"
-        class="immersive-video-play"
-        type="button"
-        aria-label="播放视频"
-        @click="togglePlayback"
-      ></button>
-
-      <div class="immersive-video-scrim" aria-hidden="true"></div>
-
-      <div class="immersive-video-copy">
-        <div class="immersive-video-author-line">
-          <RouterLink :to="{ name: 'user-profile', params: { accountId: video.author_id } }">
-            @{{ authorName }}
-          </RouterLink>
-          <time :datetime="video.created_at">{{ formatPublishedAt(video.created_at) }}</time>
+        <div v-else class="immersive-video-unavailable">
+          <strong>播放地址不可用</strong>
+          <span>可以进入详情页查看视频信息</span>
         </div>
-        <h1>{{ video.title }}</h1>
-        <p>{{ video.description || '这个视频暂时没有描述。' }}</p>
-        <span v-if="mediaError" class="immersive-video-error" role="alert">{{ mediaError }}</span>
-        <span v-if="interactionError" class="immersive-video-error" role="alert">{{ interactionError }}</span>
-      </div>
 
-      <aside class="immersive-video-actions" aria-label="视频操作">
         <button
-          v-if="!isOwnVideo"
-          class="immersive-video-follow"
-          :class="{ 'is-following': followingAuthor }"
+          v-if="videoSrc && isPaused"
+          class="immersive-video-play"
           type="button"
-          :aria-pressed="followingAuthor"
-          :disabled="followSubmitting || followStatusLoading"
-          @click="toggleFollow"
-        >
-          <strong>{{ authorInitial }}</strong>
-          <span>{{ !loggedIn ? '关注' : followStatusLoading ? '查询中' : followSubmitting ? '处理中' : followingAuthor ? '已关注' : '关注' }}</span>
-        </button>
+          aria-label="播放视频"
+          @click="togglePlayback"
+        ></button>
 
-        <div
-          class="immersive-volume-control"
-          :class="{ 'is-slider-open': volumeSliderOpen }"
-          @pointerenter="openVolumeSlider"
-          @pointerleave="scheduleVolumeSliderClose"
-        >
+        <div class="immersive-video-scrim" aria-hidden="true"></div>
+
+        <div class="immersive-video-copy" :class="{ 'is-expanded': copyExpanded }">
+          <div class="immersive-video-author-line">
+            <RouterLink :to="{ name: 'user-profile', params: { accountId: video.author_id } }">
+              @{{ authorName }}
+            </RouterLink>
+            <time :datetime="video.created_at">{{ formatPublishedAt(video.created_at) }}</time>
+          </div>
+          <h1>{{ video.title }}</h1>
+          <p v-if="video.description">{{ video.description }}</p>
+          <button v-if="video.title?.length > 24 || video.description?.length > 36" class="copy-expand" type="button" :aria-expanded="copyExpanded" @click="copyExpanded = !copyExpanded">{{ copyExpanded ? '收起' : '展开' }}</button>
+          <span v-if="mediaError" class="immersive-video-error" role="alert">{{ mediaError }}</span>
+          <span v-if="interactionError" class="immersive-video-error" role="alert">{{ interactionError }}</span>
+        </div>
+
+        <aside class="immersive-video-actions" aria-label="视频操作">
           <button
+            v-if="!isOwnVideo"
+            class="immersive-video-follow"
+            :class="{ 'is-following': followingAuthor }"
             type="button"
-            :aria-label="soundEnabled ? '关闭声音' : '开启声音'"
-            @click="toggleSound"
-            @focus="openVolumeSlider"
-            @blur="scheduleVolumeSliderClose"
+            :aria-pressed="followingAuthor"
+            :disabled="followSubmitting || followStatusLoading"
+            @click="toggleFollow"
           >
-            <strong>
-              <span class="immersive-volume-percent">{{ soundEnabled ? `${volumePercent}%` : '静音' }}</span>
-              <span class="immersive-volume-system">{{ soundEnabled ? '开声' : '静音' }}</span>
-            </strong>
-            <span class="immersive-volume-caption">{{ soundEnabled ? '音量' : '开声音' }}</span>
-            <span class="immersive-volume-system">系统音量</span>
+            <strong>{{ authorInitial }}</strong>
+            <span>{{ !loggedIn ? '关注' : followStatusLoading ? '查询中' : followSubmitting ? '处理中' : followingAuthor ? '已关注' : '关注' }}</span>
           </button>
-          <label class="immersive-volume-slider" :style="{ '--volume-level': `${volumePercent}%` }">
-            <span class="immersive-volume-slider__heading">
-              <span>播放音量</span>
-              <output>{{ volumePercent }}%</output>
-            </span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              :value="volumePercent"
-              :aria-valuetext="`${volumePercent}%`"
+
+          <button
+            class="immersive-video-action immersive-video-action--likes"
+            :class="{ 'is-liked': liked }"
+            type="button"
+            :aria-label="liked ? '取消点赞' : '点赞'"
+            :aria-pressed="liked"
+            :disabled="likeSubmitting || likeStatusLoading"
+            @click="toggleLike"
+          >
+            <AppIcon name="heart" :size="30" />
+            <span>{{ likeCount >= 10000 ? `${(likeCount / 10000).toFixed(1)}万` : likeCount }}</span>
+          </button>
+
+          <button class="immersive-video-action immersive-video-action--comments" type="button" aria-label="查看评论" @click="commentsOpen = true">
+            <AppIcon name="comment" :size="29" />
+            <span>评论</span>
+          </button>
+
+          <RouterLink class="immersive-video-action" :to="{ name: 'video-detail', params: { videoId: video.id } }">
+            <AppIcon name="arrow" :size="29" />
+            <span>详情</span>
+          </RouterLink>
+        </aside>
+
+        <button v-if="commentsOpen" class="feed-comments-backdrop" type="button" aria-label="关闭评论" @click="commentsOpen = false"></button>
+        <FeedCommentsPanel
+          v-if="commentsOpen"
+          :video-id="video.id"
+          :current-account-id="currentAccountId"
+          @close="commentsOpen = false"
+          @unauthorized="handleCommentsUnauthorized"
+        />
+
+        <div class="player-controls" @wheel.stop @keydown.stop>
+          <input class="player-seek" type="range" min="0" max="100" step="0.1" :value="progress" :disabled="!duration" aria-label="视频播放进度" :aria-valuetext="`${formatTime(currentTime)} / ${formatTime(duration)}`" :style="{ '--progress': `${progress}%` }" @input="seekVideo">
+          <button type="button" :aria-label="isPaused ? '播放视频' : '暂停视频'" @click="togglePlayback"><AppIcon :name="isPaused ? 'play' : 'pause'" :size="18" /></button>
+          <span class="player-time">{{ formatTime(currentTime) }} <span>/ {{ formatTime(duration) }}</span></span>
+          <span class="player-controls-spacer"></span>
+          <div
+            class="immersive-volume-control"
+            :class="{ 'is-slider-open': volumeSliderOpen }"
+            @pointerenter="openVolumeSlider"
+            @pointerleave="scheduleVolumeSliderClose"
+          >
+            <button
+              type="button"
+              :aria-label="soundEnabled ? '关闭声音' : '开启声音'"
+              @click="toggleSound"
               @focus="openVolumeSlider"
               @blur="scheduleVolumeSliderClose"
-              @input="updateVolume"
             >
-          </label>
+              <AppIcon :name="soundEnabled ? 'volume' : 'muted'" :size="20" />
+            </button>
+            <label class="immersive-volume-slider" :style="{ '--volume-level': `${volumePercent}%` }">
+              <span class="immersive-volume-slider__heading">
+                <span>播放音量</span>
+                <output>{{ volumePercent }}%</output>
+              </span>
+              <input
+                aria-label="播放音量"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                :value="volumePercent"
+                :aria-valuetext="`${volumePercent}%`"
+                @focus="openVolumeSlider"
+                @blur="scheduleVolumeSliderClose"
+                @input="updateVolume"
+              >
+            </label>
+          </div>
+
+          <button type="button" :aria-label="theaterMode ? '退出全屏' : '切换全屏'" @click="toggleFullscreen"><AppIcon name="fullscreen" :size="20" /></button>
+        </div>
+        <div class="feed-switcher" aria-label="切换视频" @keydown.stop>
+          <button type="button" aria-label="上一条视频" :disabled="position <= 1" @click="emit('previous')"><AppIcon name="up" /></button>
+          <button type="button" aria-label="下一条视频" :disabled="position >= total" @click="emit('next')"><AppIcon name="down" /></button>
         </div>
 
-        <button
-          class="immersive-video-action immersive-video-action--likes"
-          :class="{ 'is-liked': liked }"
-          type="button"
-          :aria-label="liked ? '取消点赞' : '点赞'"
-          :aria-pressed="liked"
-          :disabled="likeSubmitting || likeStatusLoading"
-          @click="toggleLike"
-        >
-          <strong aria-hidden="true">♥</strong>
-          <span>{{ likeCount }}</span>
-        </button>
-
-        <button class="immersive-video-action immersive-video-action--comments" type="button" aria-label="查看评论" @click="commentsOpen = true">
-          <strong aria-hidden="true">评</strong>
-          <span>评论</span>
-        </button>
-
-        <RouterLink class="immersive-video-action" :to="{ name: 'video-detail', params: { videoId: video.id } }">
-          <strong aria-hidden="true">↗</strong>
-          <span>详情</span>
-        </RouterLink>
-      </aside>
-
-      <button v-if="commentsOpen" class="feed-comments-backdrop" type="button" aria-label="关闭评论" @click="commentsOpen = false"></button>
-      <FeedCommentsPanel
-        v-if="commentsOpen"
-        :video-id="video.id"
-        :current-account-id="currentAccountId"
-        @close="commentsOpen = false"
-        @unauthorized="handleCommentsUnauthorized"
-      />
-
-      <div class="immersive-video-progress" aria-hidden="true">
-        <i :style="{ width: `${progress}%` }"></i>
+        <span class="immersive-video-position">{{ position }} / {{ total }}</span>
       </div>
-
-      <span class="immersive-video-position">{{ position }} / {{ total }}</span>
-    </div>
+    </Teleport>
   </article>
 </template>

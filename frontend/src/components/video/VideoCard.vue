@@ -66,7 +66,7 @@ function formatPublishedAt(value) {
         <time :datetime="video.created_at">{{ formatPublishedAt(video.created_at) }}</time>
       </div>
       <h2>{{ video.title }}</h2>
-      <p>{{ video.description || '这个视频暂时没有描述。' }}</p>
+      <p v-if="video.description">{{ video.description }}</p>
       <div class="feed-video-card__footer">
         <span>查看视频</span>
         <span aria-hidden="true">→</span>

@@ -69,15 +69,15 @@ watch(
 <template>
   <section class="search-page">
     <header class="search-heading">
-      <p class="eyebrow">DISCOVER CREATORS</p>
+      <p class="eyebrow">发现创作者</p>
       <h1>搜索用户</h1>
-      <p>按用户名关键词查找创作者，后端每次最多返回 20 条结果。</p>
+      <p>搜一搜，找到与你同频的人。</p>
     </header>
 
     <form class="search-form" role="search" @submit.prevent="handleSubmit">
       <label for="account-keyword">用户名关键词</label>
       <div>
-        <input id="account-keyword" v-model="keyword" name="keyword" type="search" autocomplete="off" placeholder="例如：test" :disabled="loading" @input="errorMessage = ''">
+        <input id="account-keyword" v-model="keyword" name="keyword" type="search" autocomplete="off" placeholder="输入创作者的名字" :disabled="loading" @input="errorMessage = ''">
         <button type="submit" :disabled="loading">{{ loading ? '搜索中…' : '搜索' }}</button>
       </div>
     </form>
@@ -104,7 +104,7 @@ watch(
           class="search-account-card"
           :to="{ name: 'user-profile', params: { accountId: account.account_id } }"
         >
-          <span class="search-account-card__label">CREATOR</span>
+          <span class="search-account-card__label">创作者</span>
           <h2>{{ account.username }}</h2>
           <p>ID {{ account.account_id }}</p>
           <dl>

@@ -24,7 +24,7 @@ const errorMessage = ref('')
 
 const pageCopy = computed(() => props.mode === 'following'
   ? {
-      eyebrow: 'FOLLOWING',
+      eyebrow: '保持关注',
       title: '我的关注',
       description: '查看当前账号正在关注的创作者。',
       emptyTitle: '还没有关注任何人',
@@ -32,7 +32,7 @@ const pageCopy = computed(() => props.mode === 'following'
       datePrefix: '关注于',
     }
   : {
-      eyebrow: 'FOLLOWERS',
+      eyebrow: '因你而来',
       title: '我的粉丝',
       description: '查看当前账号收到的关注关系。',
       emptyTitle: '还没有粉丝',

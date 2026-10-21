@@ -124,16 +124,16 @@ async function handleSubmit() {
     </div>
 
     <aside class="auth-showcase auth-showcase--register" aria-label="注册规则说明">
-      <span class="auth-showcase__badge">ACCOUNT / NEW</span>
+      <span class="auth-showcase__badge">FRAMEFLOW</span>
       <div>
-        <p class="auth-showcase__kicker">START CREATING</p>
+        <p class="auth-showcase__kicker">让精彩发生</p>
         <h2>从一个账号开始，记录每次表达。</h2>
-        <p>注册信息会提交到 Go Hertz 后端，密码经过加密后保存。</p>
+        <p>分享生活的灵感与热爱，在这里找到与你同频的人。</p>
       </div>
       <ul class="auth-feature-list">
-        <li><span>01</span>唯一用户名</li>
-        <li><span>02</span>密码加密存储</li>
-        <li><span>03</span>注册后登录</li>
+        <li><span>01</span>发现精彩内容</li>
+        <li><span>02</span>关注喜欢的作者</li>
+        <li><span>03</span>发布你的第一条作品</li>
       </ul>
     </aside>
   </section>

@@ -322,7 +322,7 @@ watch(videoId, loadPage, { immediate: true })
 
 <template>
   <section class="video-detail-page">
-    <RouterLink class="video-detail-back" to="/">← 返回公共视频流</RouterLink>
+    <RouterLink class="video-detail-back" to="/">← 返回推荐</RouterLink>
 
     <div v-if="pageLoading" class="video-detail-state" aria-busy="true">
       <span class="video-detail-state__mark">···</span>
@@ -366,7 +366,7 @@ watch(videoId, loadPage, { immediate: true })
           </div>
 
           <h1>{{ video.title }}</h1>
-          <p class="video-detail-description">{{ video.description || '这个视频暂时没有描述。' }}</p>
+          <p v-if="video.description" class="video-detail-description">{{ video.description }}</p>
 
           <div class="video-detail-actions">
             <button
